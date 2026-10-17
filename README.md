@@ -2,7 +2,7 @@
 
 **手から、つながろう。** dotsを着想源にした小さなキャラクターと、日本の手話の数字を練習するDevDay向けWebアプリです。
 
-独立したローカルGitリポジトリです。GitHubへの公開・デプロイは行っていません。
+ソースは[GitHubの非公開リポジトリ](https://github.com/yurinakanishi/dots-sign)、配信先は[ChatGPT Sites](https://dots-sign-yurin-devday.yurinakanishi33.chatgpt.site)です。Siteは本人のみアクセスできる設定です。
 
 ## 起動
 
@@ -16,7 +16,7 @@ npm run dev
 
 表示された **http://127.0.0.1:5173/** を開き、「カメラをオンにする」を押してカメラを許可します。APIキーやアカウント登録は不要です。カメラを使わない「お手本モード」もあります。
 
-初回の `npm install` はGoogle公式の学習済みモデルを取得し、MediaPipeのランタイムとWASMを `public/` に配置します。モデルは固定URL・SHA-256で検証します。以降の実行では、モデル・フォントを含め**同じローカルサーバーから読み込みます**。
+初回の `npm install` はGoogle公式の学習済みモデルを取得し、MediaPipeのランタイムとWASMを `public/` に配置します。モデルは固定URL・SHA-256で検証します。以降の実行では、モデル・フォントを含め**アプリと同じ配信元から読み込みます**。Sites上でもカメラの判定はブラウザ内で完結します。
 
 ### モデルの準備に失敗したとき
 
@@ -35,6 +35,10 @@ npm run preview
 ```
 
 `dist/` が配布用の静的ファイル一式です。カメラAPIには **localhost / 127.0.0.1 またはHTTPS** が必要です。`file://` や別PCからの通常のHTTP接続では動きません。サブパス配信ではなくオリジン直下への配信を想定しています。
+
+### ChatGPT Sitesへの更新
+
+`.openai/hosting.json` に既存のSite IDと静的配信先 `dist` を保存しています。更新時はこのSiteを再利用し、モデルを含むビルドと対応するコミットをSitesへ保存してデプロイします。GitHubへの `git push` だけではSitesへ自動デプロイされません。Sites用の短期認証情報はリポジトリに保存しません。
 
 ## 入っているもの
 
