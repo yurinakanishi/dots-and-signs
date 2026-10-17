@@ -1,0 +1,12 @@
+node_modules/
+dist/
+public/vendor/
+public/licenses/generated/
+public/models/*.task
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+output/
+.playwright-cli/
+.DS_Store

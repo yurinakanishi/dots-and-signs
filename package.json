@@ -1,0 +1,36 @@
+{
+  "name": "dots-sign",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/check-assets.mjs",
+    "dev": "vite --host 127.0.0.1",
+    "prebuild": "node scripts/check-assets.mjs",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "models:setup": "node scripts/setup-vision.mjs",
+    "postinstall": "node scripts/setup-vision.mjs",
+    "check": "npm run test && npm run build",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@fontsource-variable/dm-sans": "5.3.0",
+    "@fontsource-variable/noto-sans-jp": "5.3.1",
+    "@mediapipe/tasks-vision": "0.10.32",
+    "lucide-react": "^0.468.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.1.0",
+    "prettier": "3.9.10",
+    "typescript": "~5.9.3",
+    "vite": "^7.3.1",
+    "vitest": "5.0.5"
+  }
+}

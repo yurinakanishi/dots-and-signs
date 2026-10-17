@@ -1,0 +1,10 @@
+node_modules
+dist
+public/vendor
+public/models
+output
+package-lock.json
+.playwright-cli
+# Playwright run-code expects a function expression, with no leading/trailing semicolon.
+scripts/browser-smoke.cjs
+scripts/verify-model.cjs
