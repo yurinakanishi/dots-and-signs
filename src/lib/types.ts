@@ -1,28 +1,26 @@
-export type SignId = '1' | '2' | '3' | '4' | '5' | '10';
+export type SignId = 'hello' | 'evening' | 'thanks';
 export type Point = { x: number; y: number; z: number };
+export type PosePoint = Point & { visibility: number };
 export type Hand = {
   landmarks: Point[];
   worldLandmarks: Point[];
   handedness: 'Left' | 'Right';
 };
-export type Frame = { hands: Hand[]; timestamp: number; width: number; height: number };
+export type Frame = {
+  hands: Hand[];
+  poses: PosePoint[][];
+  timestamp: number;
+  width: number;
+  height: number;
+};
 export type Finger = 'thumb' | 'index' | 'middle' | 'ring' | 'pinky';
 export type FingerValues = Record<Finger, number>;
 export type Feedback = {
-  status: 'waiting' | 'adjust' | 'holding' | 'move' | 'success';
+  status: 'waiting' | 'adjust' | 'move' | 'success';
   message: string;
-  detail: string;
-  progress: number;
-  checks: { visible: boolean; shape: boolean; orientation: boolean; steady: boolean };
+  step: number;
 };
 export type WorkerResponse =
   | { type: 'ready' }
-  | {
-      type: 'result';
-      hands: Hand[];
-      timestamp: number;
-      width: number;
-      height: number;
-      inferenceMs: number;
-    }
+  | ({ type: 'result'; inferenceMs: number } & Frame)
   | { type: 'error'; message: string };

@@ -1,163 +1,179 @@
 import { describe, expect, it } from 'vitest';
-import { fingerExtensions, inspectHand, RECOGNITION, SignRecognizer } from '../src/lib/recognition';
-import type { Hand, SignId } from '../src/lib/types';
-import { frame, makeHand } from './fixtures';
+import { SignRecognizer, fingerExtensions, inspectHand } from '../src/lib/recognition';
+import { bodyAnchor } from '../src/lib/geometry';
+import type { Frame, SignId } from '../src/lib/types';
+import { frame, greeting, makeHand, mirror, motionFrames, thanks } from './fixtures';
 
-function hold(recognizer: SignRecognizer, hand: Hand, start = 0, end = 1300, step = 65) {
-  let result = recognizer.update(frame(hand, start));
-  for (let time = start + step; time <= end; time += step)
-    result = recognizer.update(frame(hand, time));
-  return result;
-}
+const signs: SignId[] = ['hello', 'evening', 'thanks'];
+const run = (sign: SignId, frames: Frame[]) => {
+  const recognizer = new SignRecognizer(sign);
+  return frames.map((f) => recognizer.update(f));
+};
+const repeat = (f: Frame, count = 30) =>
+  Array.from({ length: count }, (_, i) => ({ ...structuredClone(f), timestamp: i * 80 }));
 
-describe('unambiguous static signs', () => {
-  for (const sign of ['1', '2', '3', '4', '5'] as SignId[]) {
-    for (const left of [false, true])
-      it(`accepts ${sign} with ${left ? 'left' : 'right'} palm held steadily`, () => {
-        expect(hold(new SignRecognizer(sign), makeHand(sign, left)).status).toBe('success');
+describe('ordered greeting practice', () => {
+  for (const sign of signs)
+    for (const mirrored of [false, true]) {
+      it(sign + ' requires its complete sequence, either dominant hand', () => {
+        const results = run(sign, motionFrames(sign, mirrored));
+        expect(results.at(-1)?.status, JSON.stringify(results)).toBe('success');
+        expect(results[0].status).not.toBe('success');
       });
-    it(`does not accept any other number as ${sign}`, () => {
-      for (const other of ['1', '2', '3', '4', '5'] as SignId[]) {
-        if (other === sign) continue;
-        expect(hold(new SignRecognizer(sign), makeHand(other)).status).not.toBe('success');
+    }
+  it('does not accept static finishing poses', () => {
+    for (const sign of signs) {
+      const f = motionFrames(sign).at(-1)!;
+      expect(run(sign, repeat(f)).at(-1)?.status).not.toBe('success');
+    }
+  });
+  it('does not accept reversed sequences', () => {
+    for (const sign of signs)
+      expect(
+        run(
+          sign,
+          motionFrames(sign)
+            .reverse()
+            .map((f, i) => ({ ...f, timestamp: i * 80 })),
+        ).at(-1)?.status,
+      ).not.toBe('success');
+  });
+  it('rejects greetings without the forehead or night prelude', () => {
+    for (const sign of ['hello', 'evening'] as SignId[]) {
+      const frames = [...repeat(frame(greeting()), 6), ...repeat(frame(greeting(true)), 6)].map(
+        (f, i) => ({ ...f, timestamp: i * 80 }),
+      );
+      expect(run(sign, frames).at(-1)?.status).not.toBe('success');
+    }
+  });
+  it('does not accept a number two held at chest level as hello', () => {
+    expect(run('hello', repeat(frame([makeHand('two', 0, 0.3)]))).every((r) => r.step === 0)).toBe(
+      true,
+    );
+  });
+  it('requires both index fingers to bow', () => {
+    const frames = motionFrames('hello');
+    frames.slice(-6).forEach((f) => (f.hands[1] = greeting()[1]));
+    expect(run('hello', frames).at(-1)?.status).not.toBe('success');
+  });
+  it('requires hands to cross, not merely approach', () => {
+    const frames = motionFrames('evening');
+    frames
+      .slice(7, 13)
+      .forEach(
+        (f) => (f.hands = [makeHand('open', -0.12, -0.52), makeHand('open', 0.12, -0.52, true)]),
+      );
+    expect(run('evening', frames).at(-1)?.status).not.toBe('success');
+  });
+  it('requires evening at face level, not at the waist', () => {
+    const frames = motionFrames('evening');
+    frames
+      .slice(0, 13)
+      .forEach((f) => f.hands.forEach((h) => h.landmarks.forEach((p) => (p.y += 0.4))));
+    expect(run('evening', frames).at(-1)?.status).not.toBe('success');
+  });
+  it('requires the supporting hand to stay still during thanks', () => {
+    const frames = motionFrames('thanks');
+    frames.slice(-6).forEach((f) => (f.hands[1] = makeHand('open', 0, -0.1, true, 'down')));
+    expect(run('thanks', frames).at(-1)?.status).not.toBe('success');
+  });
+  it('requires an upward lift, not a sideways movement', () => {
+    const frames = motionFrames('thanks');
+    frames.slice(-6).forEach((f) => (f.hands[0] = makeHand('open', 0.5, 0.18, false, 'edge')));
+    expect(run('thanks', frames).at(-1)?.status).not.toBe('success');
+  });
+  it('rejects front-facing palms as the horizontal support in thanks', () => {
+    const hands = thanks();
+    hands[1] = makeHand('open', 0, 0.35, true);
+    expect(run('thanks', repeat(frame(hands))).at(-1)?.status).not.toBe('success');
+  });
+});
+
+describe('uncertainty resets rather than awarding a pass', () => {
+  for (const mutation of [
+    'no-pose',
+    'two-people',
+    'low-visibility',
+    'missing-hand',
+    'clipped',
+    'nan',
+    'duplicate-labels',
+  ] as const) {
+    it('rejects ' + mutation, () => {
+      const frames = motionFrames('thanks');
+      for (const f of frames) {
+        if (mutation === 'no-pose') f.poses = [];
+        if (mutation === 'two-people') f.poses.push(structuredClone(f.poses[0]));
+        if (mutation === 'low-visibility') f.poses[0][2].visibility = 0.2;
+        if (mutation === 'missing-hand') f.hands.pop();
+        if (mutation === 'clipped') f.hands[0].landmarks[8].y = 0;
+        if (mutation === 'nan') f.hands[0].worldLandmarks[8].x = NaN;
+        if (mutation === 'duplicate-labels') f.hands[1].handedness = f.hands[0].handedness;
       }
+      expect(run('thanks', frames).at(-1)?.status).not.toBe('success');
     });
   }
-  it('does not mistake an open palm for Japanese five', () => {
-    expect(hold(new SignRecognizer('5'), makeHand('open')).status).not.toBe('success');
+  it('drops the armed sequence when a hand disappears', () => {
+    const frames = motionFrames('thanks');
+    frames[6].hands = [];
+    expect(run('thanks', frames).at(-1)?.status).not.toBe('success');
   });
-  it('does not treat a single matching frame as success', () => {
-    const recognizer = new SignRecognizer('1');
-    expect(recognizer.update(frame(makeHand('1'), 0)).progress).toBe(0);
-    expect(recognizer.update(frame(makeHand('1'), 100)).status).not.toBe('success');
+  it('resets on a long gap or non-increasing timestamp', () => {
+    for (const delta of [-80, 1000]) {
+      const frames = motionFrames('thanks');
+      frames.slice(6).forEach((f) => (f.timestamp += delta));
+      expect(run('thanks', frames).at(-1)?.status).not.toBe('success');
+    }
   });
-  it('is invariant to world-coordinate scale and translation', () => {
-    const hand = makeHand('3');
-    const original = fingerExtensions(hand.worldLandmarks);
-    const transformed = fingerExtensions(
-      hand.worldLandmarks.map((p) => ({ x: p.x * 2 + 4, y: p.y * 2 - 3, z: p.z * 2 + 7 })),
-    );
-    Object.keys(original).forEach((key) =>
-      expect(transformed[key as keyof typeof original]).toBeCloseTo(
-        original[key as keyof typeof original],
-        6,
-      ),
-    );
+  it('does not retain earlier lesson state', () => {
+    const recognizer = new SignRecognizer('thanks');
+    motionFrames('thanks')
+      .slice(0, 6)
+      .forEach((f) => recognizer.update(f));
+    recognizer.reset('hello');
+    const result = motionFrames('thanks')
+      .slice(6)
+      .map((f) => recognizer.update(f));
+    expect(result.at(-1)?.status).not.toBe('success');
   });
-});
-
-describe('reject uncertain observations', () => {
-  it('requires exactly one hand', () => {
-    const recognizer = new SignRecognizer('1');
-    expect(recognizer.update(frame(null)).checks.visible).toBe(false);
-    const f = frame(makeHand('1'), 100);
-    f.hands.push(makeHand('1', true));
-    expect(recognizer.update(f).checks.visible).toBe(false);
+  it('does not allow a single matching frame to advance', () => {
+    expect(run('hello', [frame([makeHand('two', 0, -0.4)])])[0].step).toBe(0);
   });
-  it('rejects tiny hands', () => {
-    const hand = makeHand('1');
-    hand.landmarks.forEach((p) => {
-      p.x = 0.5 + (p.x - 0.5) * 0.1;
-      p.y = 0.5 + (p.y - 0.5) * 0.1;
-    });
-    expect(hold(new SignRecognizer('1'), hand).checks.visible).toBe(false);
-  });
-  it('rejects clipped fingertips', () => {
-    const hand = makeHand('1');
-    hand.landmarks[8].y = 0.01;
-    expect(hold(new SignRecognizer('1'), hand).checks.visible).toBe(false);
-  });
-  it('rejects invalid coordinates without throwing', () => {
-    const hand = makeHand('1');
-    hand.worldLandmarks[8].x = NaN;
-    expect(hold(new SignRecognizer('1'), hand).status).toBe('waiting');
-    hand.worldLandmarks = [];
-    expect(hold(new SignRecognizer('1'), hand).status).toBe('waiting');
-  });
-  it('rejects the back of the hand', () => {
-    const hand = makeHand('1');
-    hand.handedness = 'Left';
-    expect(inspectHand(hand, frame(hand))?.palmFacingCamera).toBe(false);
-    expect(hold(new SignRecognizer('1'), hand).checks.orientation).toBe(false);
-  });
-  it('rejects an edge-on palm', () => {
-    const hand = makeHand('1');
-    hand.worldLandmarks.forEach((p) => {
-      const x = p.x;
-      p.x = p.z;
-      p.z = x;
-    });
-    expect(hold(new SignRecognizer('1'), hand).checks.orientation).toBe(false);
-  });
-  it('resets after losing the hand, rather than accumulating intermittent matches', () => {
-    const recognizer = new SignRecognizer('1');
-    hold(recognizer, makeHand('1'), 0, 900);
-    recognizer.update(frame(null, 940));
-    expect(hold(recognizer, makeHand('1'), 1000, 1700).status).not.toBe('success');
-  });
-  it('resets after an incorrect pose', () => {
-    const recognizer = new SignRecognizer('1');
-    hold(recognizer, makeHand('1'), 0, 900);
-    recognizer.update(frame(makeHand('2'), 940));
-    expect(hold(recognizer, makeHand('1'), 1000, 1700).status).not.toBe('success');
-  });
-  it('does not bridge a dropped-frame gap', () => {
-    const recognizer = new SignRecognizer('1');
-    hold(recognizer, makeHand('1'), 0, 900);
-    expect(hold(recognizer, makeHand('1'), 1300, 2000).status).not.toBe('success');
-  });
-  it('does not add duplicate frames toward the hold', () => {
-    const recognizer = new SignRecognizer('1');
-    for (let i = 0; i < 60; i++)
-      expect(recognizer.update(frame(makeHand('1'), 100)).progress).toBe(0);
-  });
-  it('resets when switching hands', () => {
-    const recognizer = new SignRecognizer('1');
-    hold(recognizer, makeHand('1'), 0, 900);
-    expect(hold(recognizer, makeHand('1', true), 950, 1600).status).not.toBe('success');
+  it('expires an unfinished movement', () => {
+    const frames = motionFrames('thanks').slice(0, 6);
+    for (let i = 6; i < 120; i++)
+      frames.push(frame([makeHand('fist', 0.08, 0.18), thanks()[1]], i * 80));
+    for (let i = 120; i < 126; i++) frames.push(frame(thanks(true), i * 80));
+    expect(run('thanks', frames).at(-1)?.status).not.toBe('success');
   });
 });
 
-describe('ten is a motion, not a fist', () => {
-  it('requires an extended start followed by an index bend', () => {
-    const recognizer = new SignRecognizer('10');
-    expect(hold(recognizer, makeHand('1'), 0, 600).status).toBe('move');
-    expect(hold(recognizer, makeHand('fist'), 650, 1100).status).toBe('success');
-  });
-  it('rejects starting with a fist', () => {
-    expect(hold(new SignRecognizer('10'), makeHand('fist'), 0, 2500).status).not.toBe('success');
-  });
-  it('does not finish while the index remains straight', () => {
-    expect(hold(new SignRecognizer('10'), makeHand('1'), 0, 2000).status).not.toBe('success');
-  });
-  it('does not keep the start through loss of tracking', () => {
-    const recognizer = new SignRecognizer('10');
-    hold(recognizer, makeHand('1'), 0, 600);
-    recognizer.update(frame(null, 650));
-    expect(hold(recognizer, makeHand('fist'), 700, 1800).status).not.toBe('success');
-  });
-  it('rejects moving the wrist instead of bending the finger', () => {
-    const recognizer = new SignRecognizer('10');
-    hold(recognizer, makeHand('1'), 0, 600);
-    const hand = makeHand('fist');
-    hand.landmarks.forEach((p) => {
-      p.x += 0.15;
+describe('geometry invariants', () => {
+  it('uses body-relative rather than fixed screen positions', () => {
+    const frames = motionFrames('hello');
+    frames.forEach((f) => {
+      for (const points of [...f.poses, ...f.hands.map((h) => h.landmarks)])
+        points.forEach((p) => {
+          p.x = p.x * 0.8 + 0.14;
+          p.y = p.y * 0.8 + 0.06;
+        });
     });
-    expect(hold(recognizer, hand, 650, 1200).status).not.toBe('success');
+    expect(run('hello', frames).at(-1)?.status).toBe('success');
   });
-  it('expires the motion sequence', () => {
-    const recognizer = new SignRecognizer('10');
-    hold(recognizer, makeHand('1'), 0, 600);
-    const halfway = makeHand('fist');
-    // Continuous non-final shape: ensure timeout rather than frame-gap reset.
-    for (let t = 650; t < RECOGNITION.motionDeadlineMs + 650; t += 65)
-      recognizer.update(frame(makeHand('1'), t));
-    expect(hold(recognizer, halfway, 3500, 4000).status).not.toBe('success');
+  it('world angles survive scaling and translation', () => {
+    const w = makeHand('two', 0, 0).worldLandmarks;
+    expect(
+      fingerExtensions(w.map((p) => ({ x: p.x * 2 + 4, y: p.y * 2 - 3, z: p.z * 2 + 7 }))).index,
+    ).toBeCloseTo(fingerExtensions(w).index, 6);
   });
-  it('resets completion when the lesson/session changes', () => {
-    const recognizer = new SignRecognizer('1');
-    expect(hold(recognizer, makeHand('1')).status).toBe('success');
-    recognizer.reset('2');
-    expect(hold(recognizer, makeHand('1')).status).not.toBe('success');
+  it('detects MCP bending even when index interphalangeal joints stay straight', () => {
+    const h = makeHand('bow', 0, 0);
+    expect(fingerExtensions(h.worldLandmarks).index).toBeGreaterThan(0.8);
+    expect(inspectHand(h, frame([h]))?.indexLift).toBeLessThan(0.45);
+  });
+  it('palm-down orientation survives mirroring', () => {
+    const f = mirror(frame(thanks()));
+    expect(inspectHand(f.hands[1], f)?.normal.y).toBeGreaterThan(0.45);
+    expect(bodyAnchor(f)).not.toBeNull();
   });
 });

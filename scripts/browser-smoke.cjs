@@ -1,178 +1,123 @@
-// Playwright CLI run-code function. Run in an isolated test browser, never a user's profile.
-// Requires scripts/download-test-assets.mjs and a running Vite dev server.
 async (page) => {
-  const checks = []
-  const assert = (value, message) => {
-    if (!value) throw new Error(message)
-    checks.push(message)
-  }
-  const pageErrors = []
-  const onError = (error) => pageErrors.push(error.message)
+  const checks = [], errors = []
+  const assert = (ok, label) => { if (!ok) throw new Error(label); checks.push(label) }
+  const onError = e => errors.push(e.message)
   page.on('pageerror', onError)
   try {
+    await page.setViewportSize({ width: 1280, height: 720 })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto('http://127.0.0.1:5173/')
-    await page.evaluate(() => localStorage.removeItem('dots-sign.progress.v1'))
-    await page.reload()
-    await page.setViewportSize({ width: 1440, height: 1000 })
-    await page.getByRole('heading', { name: 'ことばは、手からも伝わる。' }).waitFor()
-    await page.screenshot({ path: 'output/playwright/desktop.png', scale: 'css' })
-    await page.getByRole('button', { name: '使い方を見る' }).click()
-    assert(await page.getByRole('dialog').isVisible(), 'help dialog opens')
-    await page.keyboard.press('Escape')
-    assert((await page.getByRole('dialog').count()) === 0, 'help dialog closes with Escape')
-    for (const id of ['2', '3', '4', '5', '10']) {
-      await page.getByRole('button', { name: `数字${id}のレッスン`, exact: true }).click()
-      assert(
-        await page
-          .getByRole('heading', { level: 2, name: new RegExp(`数字「${id}」`) })
-          .isVisible(),
-        `lesson ${id} opens`,
-      )
+    await page.getByRole('heading', { name: 'ひとことを、手話で。' }).waitFor()
+    assert(await page.getByRole('navigation').getByRole('button').count() === 3, 'only three greeting choices')
+    assert(await page.getByRole('button', { name: '学習のきろく' }).count() === 0, 'record screen removed')
+    assert(await page.getByRole('button', { name: 'お手本を再生' }).isVisible(), 'reduced motion starts paused')
+    const cameraButton = page.getByRole('button', { name: 'カメラで練習する', exact: true })
+    const box = await cameraButton.boundingBox()
+    assert(box.y + box.height <= 720, 'primary camera action fits laptop viewport')
+    await page.screenshot({ path: 'output/playwright/greetings-laptop.png', fullPage: true })
+    for (const label of ['こんばんは', 'ありがとう', 'こんにちは']) {
+      await page.getByRole('button', { name: label, exact: true }).click()
+      assert(await page.getByRole('heading', { name: label, exact: true }).isVisible(), label + ' lesson opens')
+      await page.getByRole('button', { name: /^3 / }).click()
+      assert(await page.getByRole('button', { name: /^3 / }).getAttribute('aria-pressed') === 'true', label + ' final example selectable')
     }
-    await page.getByRole('button', { name: 'お手本を左手に切り替える' }).click()
-    assert(
-      await page.getByRole('button', { name: 'お手本を右手に切り替える' }).isVisible(),
-      'reference hand switches',
-    )
-    await page.getByRole('button', { name: 'カメラなしでお手本を見る' }).click()
-    assert(
-      await page.getByText('判定・記録はしません').isVisible(),
-      'demo is clearly distinguished from assessment',
-    )
-    await page.screenshot({ path: 'output/playwright/demo-ten.png', scale: 'css' })
-    await page.getByRole('button', { name: 'お手本の動きを止める' }).click()
-    assert(
-      await page.getByRole('button', { name: 'お手本の動きを再生する' }).isVisible(),
-      'motion example pauses',
-    )
-    assert(
-      (await page.evaluate(() => localStorage.getItem('dots-sign.progress.v1'))) === null,
-      'demo does not award progress',
-    )
-    await page.getByRole('button', { name: 'お手本モードを閉じる' }).click()
-    await page.getByRole('button', { name: '数字1のレッスン', exact: true }).click()
+    await page.setViewportSize({ width: 390, height: 844 })
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'mobile has no horizontal overflow')
+    await page.screenshot({ path: 'output/playwright/greetings-mobile.png', fullPage: true })
+    await page.setViewportSize({ width: 1280, height: 720 })
     await page.evaluate(() => {
-      Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
-        configurable: true,
-        value: async () => {
-          throw new DOMException('Test permission denial', 'NotAllowedError')
-        },
-      })
+      Object.defineProperty(navigator.mediaDevices, 'getUserMedia', { configurable: true,
+        value: async () => { throw new DOMException('test refusal', 'NotAllowedError') } })
     })
-    await page.getByRole('button', { name: 'カメラをオンにする', exact: true }).click()
-    await page.getByRole('alert').waitFor({ timeout: 30000 })
-    assert(
-      (await page.getByRole('alert').innerText()).includes('カメラが許可されていません'),
-      'camera permission denial has an actionable message',
-    )
-    await page.screenshot({ path: 'output/playwright/permission-denied.png', scale: 'css' })
+    await cameraButton.click()
+    await page.getByRole('alert').waitFor({ timeout: 40000 })
+    assert((await page.getByRole('alert').innerText()).includes('カメラが許可されていません'), 'real models initialize and permission error is actionable')
+
+    // Isolated UI test: deterministic landmark streams exercise real recognition.
+    // This is not an end-to-end accuracy test of signed video.
     await page.evaluate(async () => {
-      const canvas = document.createElement('canvas')
-      canvas.width = 1280
-      canvas.height = 720
-      const ctx = canvas.getContext('2d')
-      let image
-      window.__dotsFixtureSet = async (file) => {
-        image?.close()
-        image = await createImageBitmap(await (await fetch(`/output/fixtures/${file}.jpg`)).blob())
+      const { motionFrames } = await import('/tests/fixtures.ts')
+      window.__setSequence = (id, mirrored = false) => {
+        window.__frames = motionFrames(id, mirrored); window.__cursor = 0
       }
-      await window.__dotsFixtureSet('pointing_up')
-      const draw = () => {
-        ctx.fillStyle = '#ddddcc'
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
-        const height = 650,
-          width = (height / image.height) * image.width
-        ctx.drawImage(image, (1280 - width) / 2, 35, width, height)
+      window.__setSequence('hello')
+      window.__NativeWorker = window.Worker
+      window.Worker = class {
+        terminated = false
+        postMessage(data) {
+          if (data.type === 'init') queueMicrotask(() => this.onmessage?.({ data: { type: 'ready' } }))
+          else {
+            data.bitmap.close()
+            const source = window.__frames[Math.min(window.__cursor++, window.__frames.length - 1)]
+            setTimeout(() => { if (!this.terminated) this.onmessage?.({ data: { ...structuredClone(source),
+              type: 'result', timestamp: data.timestamp, inferenceMs: 5 } }) }, 5)
+          }
+        }
+        terminate() { this.terminated = true }
       }
-      draw()
-      window.__dotsDrawTimer = setInterval(draw, 33)
-      window.__dotsStream = canvas.captureStream(30)
-      Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
-        configurable: true,
-        value: async () => window.__dotsStream,
-      })
+      Object.defineProperty(navigator.mediaDevices, 'getUserMedia', { configurable: true, value: async options => {
+        window.__cameraOptions = options
+        const c = document.createElement('canvas'); c.width = 1280; c.height = 720
+        const ctx = c.getContext('2d')
+        const paint = () => { ctx.fillStyle = '#53644b'; ctx.fillRect(0, 0, c.width, c.height) }
+        paint(); clearInterval(window.__paintTimer); window.__paintTimer = setInterval(paint, 30)
+        window.__stream = c.captureStream(30)
+        return window.__stream
+      } })
     })
-    await page.getByRole('button', { name: 'もう一度、カメラを開く' }).click()
-    await page.getByRole('heading', { name: 'できたね！', exact: true }).waitFor({ timeout: 30000 })
-    assert(
-      await page.evaluate(
-        () => !!JSON.parse(localStorage.getItem('dots-sign.progress.v1')).completed['1'],
-      ),
-      'real model / video / recognition / completion pipeline succeeds for one',
-    )
-    await page.screenshot({ path: 'output/playwright/success.png', scale: 'css' })
-    await page.getByRole('button', { name: '次のレッスンへ', exact: true }).click()
-    await page.evaluate(() => window.__dotsFixtureSet('victory'))
-    await page.getByRole('heading', { name: 'できたね！', exact: true }).waitFor({ timeout: 30000 })
-    assert(
-      await page.evaluate(
-        () => !!JSON.parse(localStorage.getItem('dots-sign.progress.v1')).completed['2'],
-      ),
-      'second lesson succeeds with the real model',
-    )
-    await page.getByRole('button', { name: '学習のきろく', exact: true }).click()
-    assert(
-      await page.evaluate(() =>
-        window.__dotsStream.getVideoTracks().every((track) => track.readyState === 'ended'),
-      ),
-      'navigation releases camera tracks',
-    )
-    await page.evaluate(() => clearInterval(window.__dotsDrawTimer))
-    assert(
-      await page.getByRole('heading', { name: '2つの「できた」。すてきだね。' }).isVisible(),
-      'progress page shows earned lessons',
-    )
-    await page.screenshot({ path: 'output/playwright/progress.png', scale: 'css' })
-    await page.reload()
-    await page.getByRole('button', { name: '学習のきろく', exact: true }).click()
-    assert(
-      await page.getByRole('heading', { name: '2つの「できた」。すてきだね。' }).isVisible(),
-      'progress survives reload',
-    )
-    await page.getByRole('button', { name: '学習のきろくをリセット' }).click()
-    await page.getByRole('button', { name: 'キャンセル', exact: true }).click()
-    assert(
-      await page.getByRole('heading', { name: '2つの「できた」。すてきだね。' }).isVisible(),
-      'reset cancellation preserves progress',
-    )
-    await page.getByRole('button', { name: '学習のきろくをリセット' }).click()
-    await page.getByRole('button', { name: 'リセットする', exact: true }).click()
-    assert(
-      await page.getByRole('heading', { name: '最初の一歩を、ここから。' }).isVisible(),
-      'confirmed reset clears only learning progress',
-    )
-    await page.getByRole('button', { name: 'このアプリについて', exact: true }).click()
-    assert(
-      await page.getByRole('link', { name: 'MediaPipeの公式資料' }).isVisible(),
-      'research sources and limitations are accessible',
-    )
-    await page.screenshot({ path: 'output/playwright/about.png', scale: 'css' })
-    await page.getByRole('button', { name: '手話をれんしゅう', exact: true }).click()
-    await page.setViewportSize({ width: 375, height: 812 })
-    assert(
-      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-      'mobile has no horizontal overflow',
-    )
-    await page.screenshot({ path: 'output/playwright/mobile.png', scale: 'css' })
-    await page
-      .getByRole('button', { name: /お手本を(右手|左手)に切り替える/ })
-      .scrollIntoViewIfNeeded()
-    await page.screenshot({ path: 'output/playwright/mobile-reference.png', scale: 'css' })
-    await page.setViewportSize({ width: 1366, height: 900 })
-    await page.evaluate(() => scrollTo(0, 0))
-    assert(
-      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-      'laptop has no horizontal overflow',
-    )
-    await page.screenshot({ path: 'output/playwright/laptop.png', scale: 'css' })
-    assert(pageErrors.length === 0, 'no uncaught browser exceptions')
-    return {
-      passed: checks.length,
-      checks,
-      pageErrors,
-      note: 'Synthetic video input from two official static photos tests integration, not live-user recognition accuracy.',
+    await page.getByRole('button', { name: 'もう一度ためす' }).click()
+    await page.getByRole('heading', { name: 'できたね！', exact: true }).waitFor({ timeout: 15000 })
+    assert(true, 'hello landmarks reach completion through camera hook')
+    assert(await page.evaluate(() => window.__cameraOptions.audio === false), 'microphone is never requested')
+    await page.screenshot({ path: 'output/playwright/greetings-success.png', fullPage: true })
+    for (const [label, id] of [['こんばんは', 'evening'], ['ありがとう', 'thanks']]) {
+      await page.evaluate(id => window.__setSequence(id, true), id)
+      await page.getByRole('button', { name: label, exact: true }).click()
+      assert(await page.getByRole('heading', { name: 'できたね！', exact: true }).count() === 0, label + ' clears previous result')
+      await page.getByRole('heading', { name: 'できたね！', exact: true }).waitFor({ timeout: 15000 })
+      assert(true, id + ' mirrored sequence reaches completion')
     }
+    await page.evaluate(() => window.__setSequence('thanks'))
+    await page.getByRole('button', { name: 'もう一度', exact: true }).click()
+    assert(await page.getByRole('heading', { name: 'できたね！', exact: true }).count() === 0, 'retry resets completion')
+    await page.getByRole('heading', { name: 'できたね！', exact: true }).waitFor({ timeout: 15000 })
+    await page.getByRole('button', { name: 'カメラをとめる' }).click()
+    assert(await page.evaluate(() => window.__stream.getTracks().every(t => t.readyState === 'ended')), 'stop releases camera')
+    await page.evaluate(() => window.__setSequence('thanks'))
+    await cameraButton.click()
+    await page.getByRole('button', { name: 'カメラをとめる' }).waitFor()
+    await page.evaluate(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+      document.dispatchEvent(new Event('visibilitychange'))
+      delete document.hidden
+    })
+    await cameraButton.waitFor()
+    assert(await page.evaluate(() => window.__stream.getTracks().every(t => t.readyState === 'ended')), 'hidden page releases camera')
+
+    // Stop while getUserMedia is pending; later permission resolution must not leak tracks.
+    await page.evaluate(() => {
+      Object.defineProperty(navigator.mediaDevices, 'getUserMedia', { configurable: true,
+        value: () => new Promise(resolve => { window.__resolveCamera = resolve }) })
+    })
+    await cameraButton.click()
+    await page.getByRole('heading', { name: 'カメラを許可してね' }).waitFor()
+    await page.getByRole('button', { name: 'キャンセル', exact: true }).click()
+    await page.evaluate(() => {
+      const c = document.createElement('canvas'); c.width = 10; c.height = 10
+      window.__lateStream = c.captureStream()
+      window.__resolveCamera(window.__lateStream)
+    })
+    await page.waitForFunction(() => window.__lateStream.getTracks().every(t => t.readyState === 'ended'))
+    assert(true, 'late camera permission after cancellation releases tracks')
+    assert(errors.length === 0, 'no unhandled page errors')
+    return { passed: checks.length, checks }
   } finally {
+    await page.evaluate(() => {
+      clearInterval(window.__paintTimer)
+      window.__stream?.getTracks().forEach(t => t.stop())
+      if (window.__NativeWorker) window.Worker = window.__NativeWorker
+    })
     page.off('pageerror', onError)
+    await page.reload()
   }
 }

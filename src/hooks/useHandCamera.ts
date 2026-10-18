@@ -113,9 +113,7 @@ export function useHandCamera(onFrame: (frame: Frame) => void, onStop: () => voi
             clearTimeout(timeout);
             console.error('Vision initialization:', data.message);
             reject(
-              new Error(
-                '手の検出モデルを読み込めませんでした。READMEの「モデルの準備」を確認してください。',
-              ),
+              new Error('練習の準備ができませんでした。接続を確認して、もう一度ためしてください。'),
             );
           }
         };

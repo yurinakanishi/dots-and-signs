@@ -2,6 +2,7 @@ import { copyFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { models } from './vision-models.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const source = path.join(root, 'node_modules/@mediapipe/tasks-vision');
@@ -29,19 +30,17 @@ await copyFile(path.join(source, 'vision_bundle.cjs'), path.join(vendor, 'vision
 for (const file of await readdir(path.join(source, 'wasm'))) {
   await copyFile(path.join(source, 'wasm', file), path.join(vendor, 'wasm', file));
 }
-const modelUrl =
-  'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
-const modelPath = path.join(modelDir, 'hand_landmarker.task');
-const expectedSha256 = 'fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1';
 const checksum = (bytes) => createHash('sha256').update(bytes).digest('hex');
-let bytes = await readFile(modelPath).catch(() => null);
-if (!bytes || checksum(bytes) !== expectedSha256) {
-  console.log('Downloading the versioned MediaPipe hand model (one-time setup)…');
+for (const model of models) {
+  const modelPath = path.join(modelDir, model.file);
+  let bytes = await readFile(modelPath).catch(() => null);
+  if (bytes && checksum(bytes) === model.sha256) continue;
+  console.log(`Downloading ${model.file} (one-time setup)…`);
   try {
-    const response = await fetch(modelUrl, { signal: AbortSignal.timeout(90_000) });
+    const response = await fetch(model.url, { signal: AbortSignal.timeout(90_000) });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     bytes = Buffer.from(await response.arrayBuffer());
-    if (checksum(bytes) !== expectedSha256) throw new Error('Model checksum mismatch');
+    if (checksum(bytes) !== model.sha256) throw new Error('Model checksum mismatch');
     await writeFile(modelPath, bytes);
   } catch (error) {
     bytes = null;
@@ -51,6 +50,4 @@ if (!bytes || checksum(bytes) !== expectedSha256) {
     process.exitCode = 1;
   }
 }
-if (bytes) {
-  console.log(`MediaPipe ready locally. Model SHA-256: ${checksum(bytes)}`);
-}
+if (!process.exitCode) console.log('Hand and pose models ready locally. Checksums verified.');
