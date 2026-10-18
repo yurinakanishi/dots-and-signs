@@ -1403,6 +1403,22 @@ button svg {
   font-size: 12px;
   margin: 0 0 12px;
 }
+.input-mode-toggle .voice-mode-coming-soon {
+  cursor: not-allowed;
+  color: #89917f;
+}
+.voice-mode-coming-soon > span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.voice-mode-coming-soon small {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+}
 .lesson-choices {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

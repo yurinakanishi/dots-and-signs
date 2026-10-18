@@ -55,7 +55,7 @@ npx --yes --package @playwright/cli playwright-cli -s=dots-check run-code --file
 以下だけは実APIを使用して課金されるため、任意実行とする。通常の `npm run check` やCIから呼ばない。
 
 ```powershell
-# 日本語5例を実Decisions APIへ送る
+# 日本語22例を実Decisions APIへ送る（単語だけ・言いよどみ・訂正・対象外を含む）
 npm run verify:api
 # Windowsのインストール済み日本語音声から固定発話のWAVを端末内生成
 powershell.exe -NoProfile -File scripts/generate-test-speech.ps1
@@ -64,9 +64,22 @@ npx --yes --package @playwright/cli playwright-cli -s=dots-check run-code --file
 npx --yes --package @playwright/cli playwright-cli -s=dots-check close
 ```
 
-`verify:api` は固定5件の単独API検証なのでアプリの日次接続枠は使わないが、同じプロジェクトの金額上限が適用される。音声の通し検証はアプリの接続枠も使う。人のマイク音声は録音しない。生成音声の仕組みは [Windows SpeechSynthesizer](https://learn.microsoft.com/en-us/uwp/api/windows.media.speechsynthesis.speechsynthesizer.synthesizetexttostreamasync?view=winrt-26100) を使用。
+`verify:api` は固定22件の単独API検証なのでアプリの日次接続枠は使わないが、同じプロジェクトの金額上限が適用される。音声の通し検証はアプリの接続枠も使う。人のマイク音声は録音しない。生成音声の仕組みは [Windows SpeechSynthesizer](https://learn.microsoft.com/en-us/uwp/api/windows.media.speechsynthesis.speechsynthesizer.synthesizetexttostreamasync?view=winrt-26100) を使用。
 
 本番形式の無料検証は、開発サーバーを5173で起動したまま別のPowerShellで `$env:PORT='5174'; npm start` を実行し、検証ブラウザで `run-code --filename scripts/verify-production.cjs` を実行する。終了後、5174のサーバーをCtrl+Cで止める。
+
+## 教材名だけの音声入力の修正（2026-10-18）
+
+修正前の実Decisions APIで「こんにちは」単独も「こんにちはいや、あるあるよ入っちゃ」も `none` になることを再現。画面は「練習したいことばを話してね」と案内している一方、分類指示は明示的な練習依頼だけを対象とし、雑談・否定を一括で除外していた。従来の実API検証5例には教材名だけの発話がなかった。
+
+分類と音声コーチの両方に画面の文脈を加え、教材名だけでも委任・候補表示する。同じ教材名の繰り返しや言いよどみを許容し、明確な訂正・取り消しと区別する。曖昧な入力は新しい `unclear` で聞き直し、教材がないと断定しない。文章全体の未対応な翻訳依頼は引き続き `none`。候補は利用者の確認まで教材を変更しない。
+
+- 実Decisions API：固定22例すべて成功。上記2発話は `hello`、明確な取り消し・曖昧な入力は `unclear`、未対応文章は `none`。
+- ブラウザ：模擬通信で34項目成功。聞き直し、次の候補の確認、同じ委任への通知、遅延応答、モバイル表示を含む。
+- 実Live WebRTC：合成音声の「こんにちは」単独で17項目成功。`hello` の候補表示・確認・教材表示・音声返答、未対応文章の `none`、正常終了まで確認。API報告24秒、日次接続は7回から8回へ。実マイクは使用していない。
+- ローカル：149テスト・型検査・`npm run build:local` 成功。`npm run check` のSites向けビルドは既存の `dist` の削除がEPERMとなり完了せず、ローカル用ビルドで確認した。
+
+`server/session-config.ts` の変更にはローカルサーバーの再起動が必要。検証時は5173のサーバーを再起動済み。ブラウザも再読み込みし、新しい音声接続で試す。実マイクの周囲音や音声認識の精度そのものを変更する修正ではない。
 
 ## 入力モードと4教材への更新（2026-10-18）
 

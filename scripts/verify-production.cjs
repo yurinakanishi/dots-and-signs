@@ -7,7 +7,10 @@ async (page) => {
     checks.push(label);
   };
   const onError = (error) => errors.push(error.message);
+  let voiceRequests = 0;
+  const onRequest = (request) => { if (request.url().includes('/api/live/')) voiceRequests++; };
   page.on('pageerror', onError);
+  page.on('request', onRequest);
   try {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto('http://127.0.0.1:5174/');
@@ -27,9 +30,13 @@ async (page) => {
       }))).every(Boolean);
     });
     assert(artwork, 'character bodies are real image URLs in both bundlers');
-    await page.getByRole('button', { name: '音声入力モード', exact: true }).click();
-    assert(await page.getByRole('switch', { name: '音声入力', exact: true }).getAttribute('aria-checked') === 'false', 'production voice mode starts OFF');
-    await page.getByRole('button', { name: '選択モード', exact: true }).click();
+    assert(await page.getByRole('button', { name: '音声入力モード Coming Soon', exact: true }).isDisabled(), 'voice mode is Coming Soon and cannot be activated');
+    assert(await page.getByRole('switch', { name: '音声入力', exact: true }).count() === 0, 'voice controls are not rendered');
+    for (const name of ['こんばんは', 'ありがとう', 'OpenAIへようこそ', 'こんにちは']) {
+      await page.getByRole('button', { name, exact: true }).click();
+      await page.getByRole('heading', { name, exact: true }).waitFor();
+    }
+    assert(voiceRequests === 0, 'all four choices work without contacting the voice API');
     const probe = await page.evaluate(async () => {
       const status = await (await fetch('/api/live/status')).json();
       const env = await fetch('/.env'),
@@ -87,10 +94,20 @@ async (page) => {
       'both production models load and process an empty image',
     );
     assert(errors.length === 0, 'no unhandled production page errors');
+    await page.evaluate(async () => {
+      await Promise.all([...document.querySelectorAll('img')].map(image => image.decode()));
+      await Promise.all([...document.querySelectorAll('.dot-artwork image')].map(el => {
+        const image = new Image(); image.src = el.href.baseVal; return image.decode();
+      }));
+    });
     await page.screenshot({ path: 'output/playwright/local-ready.png', fullPage: true });
+    await page.setViewportSize({ width: 320, height: 800 });
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Coming Soon and the four choices fit a 320px screen');
+    await page.screenshot({ path: 'output/playwright/sites-coming-soon-mobile.png', fullPage: true });
     return { passed: checks.length, checks };
   } finally {
     page.off('pageerror', onError);
+    page.off('request', onRequest);
     await page.goto('http://127.0.0.1:5173/');
   }
 }
