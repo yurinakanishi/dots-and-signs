@@ -25,12 +25,12 @@ export const lessons: Lesson[] = [
     intro: '会えたうれしさを、手から。',
     image: {
       src: '/lesson-images/hello-step-1.png',
-      alt: '人差し指と中指をそろえ、額の中央に当てる青いdots',
+      alt: '右手の人差し指と中指をそろえ、額の中央に当てる青いdots',
     },
     stepImages: [
       {
         src: '/lesson-images/hello-step-1.png',
-        alt: 'ステップ1：人差し指と中指の2本をそろえ、額の中央に当てる',
+        alt: 'ステップ1：右手の人差し指と中指の2本をそろえ、額の中央に当てる',
       },
       {
         src: '/lesson-images/hello-step-2.png',
@@ -42,9 +42,9 @@ export const lessons: Lesson[] = [
       },
     ],
     voiceIntent: '「こんにちは」を練習・表現したい明確な依頼',
-    shortSteps: ['額に2本の指', '両手の指を立てる', '指でおじぎ'],
+    shortSteps: ['右手の2本の指を額に', '両手の指を立てる', '指でおじぎ'],
     steps: [
-      '人差し指と中指を、額の真ん中に。',
+      '右手の人差し指と中指を、額の真ん中に。',
       '両手の人差し指を立てて、近づける。',
       '人差し指を曲げて、軽く会釈。',
     ],
