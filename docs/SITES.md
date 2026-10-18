@@ -2,7 +2,7 @@
 
 既存Site: https://practice-signs-with-dots.yurinakanishi33.chatgpt.site
 
-2026-10-18: 静的配信から、公式Sites Vinextスターターに基づくWorker配信へ移行する版。既存のSite ID・本人限定アクセス・4教材・カメラ認識を維持する。アプリ独自のChatGPTサインインは追加しない。
+2026-10-18: 静的配信から、公式Sites Vinextスターターに基づくWorker配信へ移行する版。既存のSite ID・教材・カメラ認識を維持する。アプリ独自のChatGPTサインインは追加しない。現在のSiteは全体公開。
 
 現在のUIはユーザー指定により **選択モードのみ**。音声入力モードはComing Soonの無効ボタンで、音声操作コンポーネントを描画しない。練習中のヒント選択にはサーバー側でDecisions APIを使用する。
 
@@ -13,7 +13,7 @@
 - APIキーはSites秘密設定の `OPENAI_API_KEY`。必要権限はLive / Decisions / Responses Write。ブラウザに返すのはセッションIDとSDPのみ。
 - 音声なしの練習ヒントはDecisions Write権限を使い、ヒントIDだけを返す。練習状態の要約を送信し、映像・音声・座標は送信しない。既存Siteへの反映には新しいビルドと秘密設定が必要。
 - `DB` はSites管理のD1。`drizzle/` のスキーマを公開時に適用する。音声、字幕、カメラ映像、ユーザーIDは保存しない。
-- 本人限定アクセスはSitesが処理する。公開範囲を広げる場合は、この共有APIと上限の認可設計も見直すこと。
+- Siteは全体公開。APIのOrigin確認は利用者の認証ではないため、ヒントと音声の有料処理はD1の共有上限・開始間隔で制限する。個人データはこのAPIに保存しない。
 
 ## 利用上限
 
@@ -50,7 +50,7 @@ node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js ty
 
 ## 公開手順
 
-Sitesスキルのソース同期・ビルド・梱包・本人限定デプロイを使う。秘密設定を先に適用し、その環境リビジョンで公開する。元のGitHubリモートは保持し、勝手にpushしない。
+Sitesスキルのソース同期・ビルド・梱包・公開デプロイを使う。秘密設定を先に適用し、その環境リビジョンで公開する。元のGitHubリモートは保持する。
 
 Windowsでは公式ヘルパーからの `npm.cmd` パス解決とWSLの `bash` 選択で失敗する場合がある。今回の環境では作業フォルダ内のnpm shimで絶対パスのnpm CLIを呼び、ヘルパー起動時だけGit for Windowsの `bin` をPATHに加える。アーカイブのWindowsドライブ文字をリモートホストと誤認させないよう、梱包プロセスでは `TAR_OPTIONS=--force-local` を設定する。グローバル設定・プラグイン本体は変更しない。
 

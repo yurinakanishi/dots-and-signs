@@ -2,7 +2,7 @@
 
 **ひとことを、手話で。** 青・緑・黄色・ピンクの4体のdotsと、「こんにちは」の手話を練習するDevDayアプリです。
 
-[ChatGPT Site](https://practice-signs-with-dots.yurinakanishi33.chatgpt.site) · [GitHub](https://github.com/yurinakanishi/practice-signs-with-dots)（どちらも本人限定）
+[ChatGPT Site](https://practice-signs-with-dots.yurinakanishi33.chatgpt.site)（全体公開） · [GitHub](https://github.com/yurinakanishi/practice-signs-with-dots)
 
 この版は **「こんにちは」だけを練習できる版** です。音声入力モードは **Coming Soon** と表示し、操作UIを非公開にしています。音声の内部処理・サーバー・利用回数制限は再開用に残しています。公開手順・検証状況は [docs/SITES.md](docs/SITES.md)、[引き継ぎ仕様](SPEC.md)・[音声の構成と検証](docs/LIVE.md)も参照してください。
 
@@ -244,7 +244,7 @@ Reactの `useState`、`useRef`、`useEffect`、`useCallback` を使って画面�
 
 `.openai/hosting.json` は既存のSite IDと `d1: "DB"` を指定しています。Sites向け出力は `dist/server/` と `dist/client/` です。GitHub Actionsは検証用で、現在の `ci.yml` に本番デプロイ処理はありません。
 
-Sitesの本人限定アクセスを維持します。アプリ独自のログイン画面・OAuthはありません。Sitesではプラットフォームのアクセス制御を通過したリクエストだけが届きます。APIキーはSitesの秘密設定に保存し、Gitや配布物に含めません。GitHubへのpushだけでは既存Siteへ自動反映されません。
+Sitesは全体公開です。アプリ独自のログイン画面・OAuthはありません。練習ヒントと音声のAPIにはD1で共有の日次上限と開始間隔を設けています。APIキーはSitesの秘密設定に保存し、Gitや配布物に含めません。GitHubへのpushだけでは既存Siteへ自動反映されません。
 
 ## ローカル起動
 

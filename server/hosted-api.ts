@@ -51,8 +51,8 @@ async function readJson(stream: ReadableStream<Uint8Array> | null, limit: number
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 
-// Sites owns private-site access. No separate sign-in or OAuth stack is added.
-// This global endpoint is not user-owned data and remains behind owner-only access.
+// The Site is public. These shared endpoints have D1-backed usage limits.
+// Origin checks reject accidental cross-site calls; they do not authenticate callers.
 export async function handleHostedApi(
   req: Request,
   env: HostedEnv,
