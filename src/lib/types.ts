@@ -1,4 +1,6 @@
 export type SignId = 'hello' | 'evening' | 'thanks';
+// Image-only lessons do not inherit another sign's recognition rules.
+export type LessonId = SignId | 'welcome';
 export type Point = { x: number; y: number; z: number };
 export type PosePoint = Point & { visibility: number };
 export type Hand = {

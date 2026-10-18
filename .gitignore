@@ -9,4 +9,5 @@ public/models/*.task
 !.env.example
 output/
 .playwright-cli/
+.local/
 .DS_Store

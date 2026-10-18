@@ -13,3 +13,6 @@ scripts/verify-progress.cjs
 scripts/verify-tracking-recovery.cjs
 scripts/verify-characters.cjs
 scripts/verify-checkpoints.cjs
+scripts/verify-live.cjs
+scripts/verify-voice-ui.cjs
+scripts/verify-production.cjs

@@ -1,36 +1,28 @@
 import { useCallback, useRef, useState } from 'react';
-import {
-  ArrowRight,
-  Camera,
-  Check,
-  Heart,
-  LoaderCircle,
-  Moon,
-  RotateCcw,
-  Sun,
-  VideoOff,
-} from 'lucide-react';
+import { ArrowRight, Camera, Check, LoaderCircle, RotateCcw, VideoOff } from 'lucide-react';
 import { Dot } from './components/Dot';
 import { SignDemo } from './components/SignDemo';
 import { PracticeProgress } from './components/PracticeProgress';
+import { LessonInput } from './components/LessonInput';
 import { useHandCamera } from './hooks/useHandCamera';
+import { useLiveCoach } from './hooks/useLiveCoach';
 import { drawHands } from './lib/drawing';
 import { lessons, SOURCE_URL } from './lib/lessons';
 import { SignRecognizer, waitingFeedback } from './lib/recognition';
-import type { Feedback, Frame, SignId } from './lib/types';
+import type { Feedback, Frame, LessonId } from './lib/types';
 import './styles.css';
 
-const lessonIcons = { hello: Sun, evening: Moon, thanks: Heart };
 export default function App() {
-  const [selected, setSelected] = useState<SignId>('hello');
+  const [selected, setSelected] = useState<LessonId>('hello');
   const [feedback, setFeedback] = useState(waitingFeedback);
-  const current = useRef<SignId>('hello');
-  const recognizer = useRef(new SignRecognizer('hello'));
+  const current = useRef<LessonId>('hello');
+  const recognizer = useRef<SignRecognizer | null>(new SignRecognizer('hello'));
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lesson = lessons.find((l) => l.id === selected)!;
   const reset = useCallback(() => {
-    recognizer.current.reset(current.current);
-    setFeedback(waitingFeedback(current.current));
+    const recognitionId = lessons.find((item) => item.id === current.current)!.recognitionId;
+    recognizer.current = recognitionId ? new SignRecognizer(recognitionId) : null;
+    setFeedback(recognitionId ? waitingFeedback(recognitionId) : waitingFeedback());
     const canvas = canvasRef.current;
     canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
   }, []);
@@ -52,6 +44,10 @@ export default function App() {
   }, []);
   const handleFrame = useCallback(
     (frame: Frame) => {
+      if (!recognizer.current) {
+        if (canvasRef.current) drawHands(canvasRef.current, frame, false);
+        return;
+      }
       const next = recognizer.current.update(frame, performance.now());
       showFeedback(next);
       if (canvasRef.current)
@@ -65,21 +61,22 @@ export default function App() {
   );
   const handleTrackingPause = useCallback(
     (now: number) => {
-      showFeedback(recognizer.current.pauseTracking(now));
+      if (recognizer.current) showFeedback(recognizer.current.pauseTracking(now));
       const canvas = canvasRef.current;
       canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
     },
     [showFeedback],
   );
   const pausePractice = useCallback(() => {
-    setFeedback(recognizer.current.pauseSession());
+    if (recognizer.current) setFeedback(recognizer.current.pauseSession());
     const canvas = canvasRef.current;
     canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
   }, []);
   const camera = useHandCamera(handleFrame, pausePractice, handleTrackingPause);
   const active = camera.state === 'active';
   const busy = camera.state === 'loading' || camera.state === 'requesting';
-  const success = feedback.status === 'success';
+  const guided = lesson.recognitionId !== null;
+  const success = guided && feedback.status === 'success';
   const achievement = feedback.completedSteps;
   const canResume = achievement > 0 && !success;
   const hasPractice = active || achievement > 0;
@@ -89,19 +86,22 @@ export default function App() {
       : achievement === 2
         ? 'ステップ1・2はできたよ'
         : 'dots';
-  function choose(id: SignId) {
+  function choose(id: LessonId) {
     if (id === current.current) return;
     current.current = id;
     setSelected(id);
     reset();
   }
-  const cheer = success
+  const coach = useLiveCoach(selected, choose);
+  const cheer = !guided
     ? lesson.cheer
-    : active
-      ? feedback.message
-      : canResume
-        ? `ステップ${feedback.step + 1}から続けられるよ。カメラをつけて、今のお手本をまねしてね。`
-        : 'ゆっくりで大丈夫。いっしょにやってみよう。';
+    : success
+      ? lesson.cheer
+      : active
+        ? feedback.message
+        : canResume
+          ? `ステップ${feedback.step + 1}から続けられるよ。カメラをつけて、今のお手本をまねしてね。`
+          : 'ゆっくりで大丈夫。いっしょにやってみよう。';
 
   return (
     <div className="app">
@@ -129,22 +129,7 @@ export default function App() {
           <h1>ひとことを、手話で。</h1>
           <p>お手本を見て、まねしてみよう。</p>
         </div>
-        <nav className="lesson-tabs" aria-label="練習することば">
-          {lessons.map((item) => {
-            const Icon = lessonIcons[item.id];
-            return (
-              <button
-                key={item.id}
-                aria-pressed={selected === item.id}
-                className={selected === item.id ? 'lesson-tab selected' : 'lesson-tab'}
-                onClick={() => choose(item.id)}
-              >
-                <Icon size={18} strokeWidth={1.7} />
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
+        <LessonInput selected={selected} coach={coach} />
         <section
           className={`practice-card${hasPractice ? ' is-practicing' : ''}`}
           aria-labelledby="lesson-title"
@@ -154,31 +139,37 @@ export default function App() {
               <h2 id="lesson-title">{lesson.label}</h2>
               <Dot color="yellow" achievement={achievement} />
             </div>
-            <PracticeProgress lesson={lesson} feedback={feedback} active={active} />
+            {guided ? (
+              <PracticeProgress lesson={lesson} feedback={feedback} active={active} />
+            ) : (
+              <span className="image-practice-label">画像を見て練習</span>
+            )}
           </div>
           <div className="practice-grid">
             <SignDemo
               key={selected}
               lesson={lesson}
-              feedback={hasPractice ? feedback : undefined}
+              feedback={guided && hasPractice ? feedback : undefined}
             />
             <section className="camera-panel" aria-label="カメラで練習">
               <div className="panel-label">
                 <span>
-                  {success
-                    ? '3ステップ完了！'
-                    : active
-                      ? `ステップ ${feedback.step + 1} / 3`
-                      : canResume
-                        ? `ステップ${feedback.step + 1}から再開`
-                        : 'やってみよう'}
+                  {!guided
+                    ? '画像と見比べよう'
+                    : success
+                      ? '3ステップ完了！'
+                      : active
+                        ? `ステップ ${feedback.step + 1} / 3`
+                        : canResume
+                          ? `ステップ${feedback.step + 1}から再開`
+                          : 'やってみよう'}
                 </span>
                 <span className={active ? 'camera-status live' : 'camera-status'}>
                   <i />
                   {active ? 'カメラ ON' : 'カメラ OFF'}
                 </span>
               </div>
-              {active && !success && (
+              {guided && active && !success && (
                 <div className="detection-status" aria-label="カメラの検出状態">
                   {feedback.trackingPaused ? (
                     <span className="detection-missing">
@@ -300,7 +291,9 @@ export default function App() {
                     <button
                       className="primary-button"
                       onClick={() =>
-                        choose(lessons[(lessons.indexOf(lesson) + 1) % lessons.length].id)
+                        coach.selectLessonManually(
+                          lessons[(lessons.indexOf(lesson) + 1) % lessons.length].id,
+                        )
                       }
                     >
                       次のことばへ
@@ -338,7 +331,7 @@ export default function App() {
                   <p role="status" aria-live="polite" aria-atomic="true">
                     {cheer}
                   </p>
-                  {active && !success && (
+                  {guided && active && !success && (
                     <div
                       className="hold-progress"
                       aria-label="今の形を保つ時間"
