@@ -5,6 +5,41 @@ import { frame, greeting, makeHand, motionFrames } from './fixtures';
 import type { SignId } from '../src/lib/types';
 
 describe('visible progress follows confirmed movements', () => {
+  it('pauses briefly on stalled recognition and earns a new hold after recovery', () => {
+    const recognizer = new SignRecognizer('hello');
+    motionFrames('hello')
+      .slice(0, 13)
+      .forEach((f) => recognizer.update(f));
+    expect(recognizer.pauseTracking(1300)).toMatchObject({
+      step: 2,
+      trackingPaused: true,
+      handCount: 0,
+      holdProgress: 0,
+    });
+    expect(recognizer.visibleHands).toHaveLength(0);
+    for (const time of [1400, 1480, 1560]) {
+      expect(recognizer.update(frame(greeting(true), time))).toMatchObject({
+        step: 2,
+        trackingPaused: false,
+        status: 'move',
+      });
+    }
+    expect(recognizer.update(frame(greeting(true), 1640)).status).toBe('success');
+  });
+  it('clears progress after prolonged stalled recognition, without inventing hands', () => {
+    const recognizer = new SignRecognizer('hello');
+    motionFrames('hello')
+      .slice(0, 13)
+      .forEach((f) => recognizer.update(f));
+    recognizer.pauseTracking(1200);
+    expect(recognizer.pauseTracking(2300)).toMatchObject({
+      step: 0,
+      completedSteps: 0,
+      trackingPaused: true,
+      handCount: 0,
+    });
+    expect(recognizer.update(frame(greeting(true), 2400)).status).not.toBe('success');
+  });
   for (const sign of ['hello', 'evening', 'thanks'] as SignId[]) {
     it(sign + ' exposes every stage and completion', () => {
       const recognizer = new SignRecognizer(sign);

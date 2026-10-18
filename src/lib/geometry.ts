@@ -14,14 +14,22 @@ export const finite = (p: Point) =>
   p && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z);
 
 export function fingerExtensions(points: Point[]): FingerValues {
-  const values = {} as FingerValues;
-  const palm = Math.max(distance(points[0], points[9]), 1e-6);
+  const values: FingerValues = { thumb: null, index: null, middle: null, ring: null, pinky: null };
+  if (points.length !== 21 || !finite(points[0]) || !finite(points[9])) return values;
+  const palm = distance(points[0], points[9]);
+  if (palm < 1e-6) return values;
+  // As in CRO-MAGNON's finger states, unknown must never mean folded.
+  // Coincident joints have no measurable bend, even when all coordinates are finite.
+  const measurable = (indices: number[]) =>
+    indices.every((i) => finite(points[i])) &&
+    indices.slice(1).every((i, j) => distance(points[indices[j]], points[i]) > palm * 1e-4);
   for (const [name, start] of [
     ['index', 5],
     ['middle', 9],
     ['ring', 13],
     ['pinky', 17],
   ] as const) {
+    if (!measurable([start, start + 1, start + 2, start + 3])) continue;
     const pip = angle(points[start], points[start + 1], points[start + 2]);
     const dip = angle(points[start + 1], points[start + 2], points[start + 3]);
     const length = distance(points[start], points[start + 3]);
@@ -34,6 +42,7 @@ export function fingerExtensions(points: Point[]): FingerValues {
       clamp((length / Math.max(bones, 1e-6) - 0.35) / 0.57),
     );
   }
+  if (!measurable([1, 2, 3, 4]) || !finite(points[5])) return values;
   const thumbAngle = Math.min(
     angle(points[1], points[2], points[3]),
     angle(points[2], points[3], points[4]),

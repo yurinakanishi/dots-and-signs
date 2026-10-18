@@ -1,6 +1,7 @@
 import { bodyAnchor, inspectHand } from './geometry';
 import { HandTracker } from './handTracking';
-import type { Feedback, Frame, Hand, SignId } from './types';
+import { isFreshFrame } from './frameTiming';
+import type { Feedback, Finger, Frame, Hand, SignId } from './types';
 
 export { fingerExtensions, inspectHand } from './geometry';
 // Detection confidence and hold time are not measured recognition accuracy.
@@ -22,17 +23,22 @@ type LocatedHand = NonNullable<ReturnType<typeof inspectHand>> & {
 };
 type Phase = 'intro' | 'cross' | 'greet' | 'bow' | 'place' | 'lift';
 const distance = (a: XY, b: XY) => Math.hypot(a.x - b.x, a.y - b.y);
+const extended = (h: LocatedHand, finger: Finger, minimum = 0.68) => {
+  const value = h.extensions[finger];
+  return value !== null && value >= minimum;
+};
+const folded = (h: LocatedHand, finger: Finger, maximum = 0.5) => {
+  const value = h.extensions[finger];
+  return value !== null && value < maximum;
+};
 const open = (h: LocatedHand) =>
-  (['index', 'middle', 'ring', 'pinky'] as const).every((f) => h.extensions[f] >= 0.68);
+  (['index', 'middle', 'ring', 'pinky'] as const).every((f) => extended(h, f));
 const otherFolded = (h: LocatedHand) =>
-  h.extensions.middle < 0.5 &&
-  h.extensions.ring < 0.5 &&
-  h.extensions.pinky < 0.5 &&
-  h.extensions.thumb < 0.72;
+  folded(h, 'middle') && folded(h, 'ring') && folded(h, 'pinky') && folded(h, 'thumb', 0.72);
 const indexUp = (h: LocatedHand) =>
-  otherFolded(h) && h.extensions.index >= 0.72 && h.indexLift > 0.65 && h.up > 0.55;
+  otherFolded(h) && extended(h, 'index', 0.72) && h.indexLift > 0.65 && h.up > 0.55;
 const indexBowed = (h: LocatedHand) =>
-  otherFolded(h) && (h.extensions.index < 0.55 || h.indexLift < 0.45);
+  otherFolded(h) && h.extensions.index !== null && (folded(h, 'index', 0.55) || h.indexLift < 0.45);
 const nearChest = (h: LocatedHand) => Math.abs(h.at.x) < 0.75 && h.at.y > -0.28 && h.at.y < 0.8;
 
 export function waitingFeedback(sign: SignId = 'hello'): Feedback {
@@ -45,6 +51,7 @@ export function waitingFeedback(sign: SignId = 'hello'): Feedback {
     handCount: 0,
     requiredHands: sign === 'evening' ? 2 : 1,
     bodyVisible: false,
+    trackingPaused: false,
     demoFrame: 0,
   };
 }
@@ -128,6 +135,7 @@ export class SignRecognizer {
       handCount: this.visibleHands.length,
       requiredHands: step === 0 && this.sign !== 'evening' ? 1 : 2,
       bodyVisible: this.bodyVisible,
+      trackingPaused: false,
       demoFrame:
         this.sign === 'evening' && this.phase === 'bow'
           ? 3
@@ -156,13 +164,22 @@ export class SignRecognizer {
     return this.reply('3ステップできたね！ 手の動きを確認できたよ。', 'success');
   }
 
-  update(frame: Frame): Feedback {
+  pauseTracking(now: number): Feedback {
+    this.visibleHands = [];
+    this.bodyVisible = false;
+    if (this.complete) return this.success();
+    const feedback = this.pause('映像と認識の更新を待っているよ。少しだけ、そのままでね。', now);
+    return { ...feedback, trackingPaused: true };
+  }
+
+  update(frame: Frame, receivedAt = frame.timestamp): Feedback {
     if (
-      ![frame.timestamp, frame.width, frame.height].every(Number.isFinite) ||
+      ![frame.timestamp, frame.width, frame.height, receivedAt].every(Number.isFinite) ||
       frame.width <= 0 ||
       frame.height <= 0
     )
       return this.restart('カメラを確認して、ステップ1からもう一度。');
+    if (!isFreshFrame(frame.timestamp, receivedAt)) return this.pauseTracking(receivedAt);
     this.visibleHands = this.tracker.update(frame);
     const body = bodyAnchor(frame);
     this.bodyVisible = !!body;
@@ -240,11 +257,11 @@ export class SignRecognizer {
     if (this.sign === 'hello' && this.phase === 'intro') {
       const h = hands.find(
         (h) =>
-          h.extensions.index > 0.72 &&
-          h.extensions.middle > 0.72 &&
-          h.extensions.ring < 0.5 &&
-          h.extensions.pinky < 0.5 &&
-          h.extensions.thumb < 0.72 &&
+          extended(h, 'index', 0.72) &&
+          extended(h, 'middle', 0.72) &&
+          folded(h, 'ring') &&
+          folded(h, 'pinky') &&
+          folded(h, 'thumb', 0.72) &&
           distance(h.tip, body.forehead) < 0.23 &&
           h.up > 0.35,
       );

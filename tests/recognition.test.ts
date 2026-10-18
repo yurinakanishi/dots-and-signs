@@ -13,6 +13,19 @@ const repeat = (f: Frame, count = 30) =>
   Array.from({ length: count }, (_, i) => ({ ...structuredClone(f), timestamp: i * 80 }));
 
 describe('ordered greeting practice', () => {
+  for (const hz of [10, 15, 30]) {
+    it('confirms ordered gestures at ' + hz + ' camera results per second', () => {
+      for (const sign of signs) {
+        const source = motionFrames(sign),
+          resampled: Frame[] = [];
+        for (let time = 0; time <= source.at(-1)!.timestamp + 160; time += 1000 / hz) {
+          const f = structuredClone(source[Math.min(Math.floor(time / 80), source.length - 1)]);
+          resampled.push({ ...f, timestamp: time });
+        }
+        expect(run(sign, resampled).at(-1)?.status).toBe('success');
+      }
+    });
+  }
   for (const sign of signs)
     for (const mirrored of [false, true]) {
       it(sign + ' requires its complete sequence, either dominant hand', () => {
@@ -90,6 +103,25 @@ describe('ordered greeting practice', () => {
 });
 
 describe('uncertainty resets rather than awarding a pass', () => {
+  it('does not advance from results that arrive 600 ms after capture', () => {
+    const recognizer = new SignRecognizer('hello');
+    const results = motionFrames('hello').map((f) => recognizer.update(f, f.timestamp + 600));
+    expect(results.every((r) => r.step === 0 && r.status !== 'success')).toBe(true);
+  });
+  it('does not interpret collapsed index joints as a bow', () => {
+    const frames = motionFrames('hello');
+    frames.slice(-6).forEach((f) => {
+      f.hands.forEach((h) => {
+        for (const i of [6, 7, 8]) h.worldLandmarks[i] = { ...h.worldLandmarks[5] };
+      });
+    });
+    expect(run('hello', frames).at(-1)?.status).not.toBe('success');
+  });
+  it('does not interpret an unmeasurable ring finger as folded at the forehead', () => {
+    const h = makeHand('two', 0, -0.4);
+    h.worldLandmarks[14] = { ...h.worldLandmarks[13] };
+    expect(run('hello', repeat(frame([h]))).every((r) => r.step === 0)).toBe(true);
+  });
   for (const mutation of [
     'no-pose',
     'two-people',
@@ -158,6 +190,13 @@ describe('uncertainty resets rather than awarding a pass', () => {
 });
 
 describe('geometry invariants', () => {
+  it('reports an invalid finger as unknown while retaining measurable fingers', () => {
+    const w = makeHand('two', 0, 0).worldLandmarks;
+    w[14] = { ...w[13] };
+    const extensions = fingerExtensions(w);
+    expect(extensions.ring).toBeNull();
+    expect(extensions.index).toBeGreaterThan(0.8);
+  });
   it('uses body-relative rather than fixed screen positions', () => {
     const frames = motionFrames('hello');
     frames.forEach((f) => {
@@ -173,7 +212,7 @@ describe('geometry invariants', () => {
     const w = makeHand('two', 0, 0).worldLandmarks;
     expect(
       fingerExtensions(w.map((p) => ({ x: p.x * 2 + 4, y: p.y * 2 - 3, z: p.z * 2 + 7 }))).index,
-    ).toBeCloseTo(fingerExtensions(w).index, 6);
+    ).toBeCloseTo(fingerExtensions(w).index!, 6);
   });
   it('detects MCP bending even when index interphalangeal joints stay straight', () => {
     const h = makeHand('bow', 0, 0);

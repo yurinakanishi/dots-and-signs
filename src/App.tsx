@@ -17,7 +17,7 @@ import { useHandCamera } from './hooks/useHandCamera';
 import { drawHands } from './lib/drawing';
 import { lessons, SOURCE_URL } from './lib/lessons';
 import { SignRecognizer, waitingFeedback } from './lib/recognition';
-import type { Frame, SignId } from './lib/types';
+import type { Feedback, Frame, SignId } from './lib/types';
 import './styles.css';
 
 const lessonIcons = { hello: Sun, evening: Moon, thanks: Heart };
@@ -34,8 +34,7 @@ export default function App() {
     const canvas = canvasRef.current;
     canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
   }, []);
-  const handleFrame = useCallback((frame: Frame) => {
-    const next = recognizer.current.update(frame);
+  const showFeedback = useCallback((next: Feedback) => {
     setFeedback((old) =>
       old.status === next.status &&
       old.message === next.message &&
@@ -44,18 +43,34 @@ export default function App() {
       old.holdProgress === next.holdProgress &&
       old.handCount === next.handCount &&
       old.bodyVisible === next.bodyVisible &&
+      old.trackingPaused === next.trackingPaused &&
       old.demoFrame === next.demoFrame
         ? old
         : next,
     );
-    if (canvasRef.current)
-      drawHands(
-        canvasRef.current,
-        { ...frame, hands: recognizer.current.visibleHands },
-        next.status === 'success',
-      );
   }, []);
-  const camera = useHandCamera(handleFrame, reset);
+  const handleFrame = useCallback(
+    (frame: Frame) => {
+      const next = recognizer.current.update(frame, performance.now());
+      showFeedback(next);
+      if (canvasRef.current)
+        drawHands(
+          canvasRef.current,
+          { ...frame, hands: recognizer.current.visibleHands },
+          next.status === 'success',
+        );
+    },
+    [showFeedback],
+  );
+  const handleTrackingPause = useCallback(
+    (now: number) => {
+      showFeedback(recognizer.current.pauseTracking(now));
+      const canvas = canvasRef.current;
+      canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+    },
+    [showFeedback],
+  );
+  const camera = useHandCamera(handleFrame, reset, handleTrackingPause);
   const active = camera.state === 'active';
   const busy = camera.state === 'loading' || camera.state === 'requesting';
   const success = active && feedback.status === 'success';
@@ -135,20 +150,29 @@ export default function App() {
               </div>
               {active && !success && (
                 <div className="detection-status" aria-label="カメラの検出状態">
-                  <span
-                    className={
-                      feedback.handCount >= feedback.requiredHands
-                        ? 'detected'
-                        : 'detection-missing'
-                    }
-                  >
-                    <i aria-hidden="true" />
-                    手を{feedback.handCount}本検出
-                    <small>この段階は{feedback.requiredHands}本</small>
-                  </span>
-                  <span className={feedback.bodyVisible ? 'detected' : 'detection-missing'}>
-                    {feedback.bodyVisible ? '顔・肩 OK' : '顔と肩も映してね'}
-                  </span>
+                  {feedback.trackingPaused ? (
+                    <span className="detection-missing">
+                      <i aria-hidden="true" />
+                      認識を待っています
+                    </span>
+                  ) : (
+                    <>
+                      <span
+                        className={
+                          feedback.handCount >= feedback.requiredHands
+                            ? 'detected'
+                            : 'detection-missing'
+                        }
+                      >
+                        <i aria-hidden="true" />
+                        手を{feedback.handCount}本検出
+                        <small>この段階は{feedback.requiredHands}本</small>
+                      </span>
+                      <span className={feedback.bodyVisible ? 'detected' : 'detection-missing'}>
+                        {feedback.bodyVisible ? '顔・肩 OK' : '顔と肩も映してね'}
+                      </span>
+                    </>
+                  )}
                 </div>
               )}
               <div

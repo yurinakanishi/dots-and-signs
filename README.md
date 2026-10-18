@@ -10,6 +10,8 @@
 
 画面はこの練習だけです。カメラを始めると、3段階の「できた・いまここ・つぎ」と「ステップ 1 / 3」を表示し、お手本が判定に連動します。検出した手の数と、その段階に必要な手の数を別々に表示します。2つの手の骨格は青・黄色で描き分けます。形を少し保つと次へ進み、一瞬の検出漏れでは今の段階で待ちます。
 
+映像や認識が遅れた場合は「認識を待っています」と表示し、古い骨格を消して待機します。新しい映像が届けば自動で判定へ戻ります。長く途切れた場合は手順を最初から確認し、8秒間の映像停止・無応答ではカメラを解放して再起動を案内します。
+
 学習記録、達成率、サイドメニュー、別画面の設定はありません。カメラを止めている間は、お手本を一時停止したり手順を押して確認できます。OSの「動きを減らす」設定では自動再生しません。
 
 ## ローカル起動
@@ -47,7 +49,7 @@ npm run check
 npm run preview
 ```
 
-43件の認識・追跡・進行表示のテスト、実モデル10ケースと両手検出9ケース、既存ブラウザ23項目と進行表示19項目を確認しました。実モデルの両手結果がカメラ処理から画面へ届くことも確認しました。検証内容と残る制約は[docs/QA.md](docs/QA.md)を参照してください。
+52件の認識・追跡・進行表示のテスト、実モデル10ケースと両手検出9ケース、既存ブラウザ23項目・進行表示19項目・遅延と復帰13項目を確認しました。CRO-MAGNONの手操作を参考にした変更は[調査と設計](docs/RECOGNITION.md)、検証内容と残る制約は[検証記録](docs/QA.md)を参照してください。
 
 ブラウザ確認の再実行は、開発サーバーと専用の検証ブラウザを使います。
 
@@ -58,6 +60,7 @@ npx --yes --package @playwright/cli playwright-cli -s=greetings run-code --filen
 npx --yes --package @playwright/cli playwright-cli -s=greetings run-code --filename=scripts/verify-two-hands.cjs
 npx --yes --package @playwright/cli playwright-cli -s=greetings run-code --filename=scripts/browser-smoke.cjs
 npx --yes --package @playwright/cli playwright-cli -s=greetings run-code --filename=scripts/verify-progress.cjs
+npx --yes --package @playwright/cli playwright-cli -s=greetings run-code --filename=scripts/verify-tracking-recovery.cjs
 npx --yes --package @playwright/cli playwright-cli -s=greetings close
 ```
 

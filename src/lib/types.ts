@@ -16,7 +16,7 @@ export type Frame = {
   height: number;
 };
 export type Finger = 'thumb' | 'index' | 'middle' | 'ring' | 'pinky';
-export type FingerValues = Record<Finger, number>;
+export type FingerValues = Record<Finger, number | null>;
 export type Feedback = {
   status: 'waiting' | 'adjust' | 'move' | 'success';
   message: string;
@@ -26,6 +26,7 @@ export type Feedback = {
   handCount: number;
   requiredHands: number;
   bodyVisible: boolean;
+  trackingPaused: boolean;
   demoFrame: number;
 };
 export type WorkerResponse =

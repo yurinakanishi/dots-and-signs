@@ -10,3 +10,4 @@ scripts/browser-smoke.cjs
 scripts/verify-model.cjs
 scripts/verify-two-hands.cjs
 scripts/verify-progress.cjs
+scripts/verify-tracking-recovery.cjs
