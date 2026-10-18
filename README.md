@@ -1,8 +1,8 @@
-# dots & signs
+# Practice Signs with Dots
 
 **ひとことを、手話で。** 青・緑・黄色・ピンクの4体のdotsと、「こんにちは・こんばんは・ありがとう」を練習するDevDayアプリです。
 
-[ChatGPT Site](https://dots-sign-yurin-devday.yurinakanishi33.chatgpt.site) · [GitHub](https://github.com/yurinakanishi/dots-sign)（どちらも本人限定）
+[ChatGPT Site](https://dots-sign-yurin-devday.yurinakanishi33.chatgpt.site) · [GitHub](https://github.com/yurinakanishi/practice-signs-with-dots)（どちらも本人限定）
 
 ## 使い方
 
