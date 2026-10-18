@@ -1,0 +1,29 @@
+{
+  "created": "2026-10-18",
+  "tool": "built-in image_gen.imagegen",
+  "mode": "reference-guided edit",
+  "transparent_background": true,
+  "input": "User-provided four-character dots reference image",
+  "assets": [
+    {
+      "color": "blue",
+      "file": "src/assets/dots/blue-body.png",
+      "prompt": "Create a production animation asset for a web app, using the attached four plush dots as identity reference. This is ONLY the clean furry BODY layer for a character rig. The eyes, hats and glasses will be rendered and animated separately in the app. One single character body only, centered, full body visible, almost straight-on front view, bottom resting on a horizontal baseline, absolutely transparent background. Match the reference's richly tactile short plush fibers, softly stuffed cushion volume, rounded silhouette and saturated color. Premium soft studio lighting, natural gentle self shading. No ground plane, no cast floor shadow, no text, no logos, no limbs, no extra objects. Body occupies about 80 percent of a square canvas, generous transparent margin. Do not include any eyes, face, mouth, nose, accessories, hats, glasses or sunglasses. Preserve the distinctive BODY silhouette, this is deliberately a blank rig plate, not a complete mascot. The LEFT BLUE character. A squat cyan/azure blue plush cushion blob, gently asymmetric wide low rounded dome, little rounded scallop/bulge on the right side, flattened pillowy base. Remove the black beret and both eyes completely. Color vivid saturated sky blue, as reference."
+    },
+    {
+      "color": "green",
+      "file": "src/assets/dots/green-body.png",
+      "prompt": "Create a production animation asset for a web app, using the attached four plush dots as identity reference. This is ONLY the clean furry BODY layer for a character rig. The eyes, hats and glasses will be rendered and animated separately in the app. One single character body only, centered, full body visible, almost straight-on front view, bottom resting on a horizontal baseline, absolutely transparent background. Match the reference's richly tactile short plush fibers, softly stuffed cushion volume, rounded silhouette and saturated color. Premium soft studio lighting, natural gentle self shading. No ground plane, no cast floor shadow, no text, no logos, no limbs, no extra objects. Body occupies about 80 percent of a square canvas, generous transparent margin. Do not include any eyes, face, mouth, nose, accessories, hats, glasses or sunglasses. Preserve the distinctive BODY silhouette, this is deliberately a blank rig plate, not a complete mascot. The LIME GREEN character. Bright yellow-lime plush rounded mound, broad low rounded base and two small raised rounded furry bumps on the top left and right where eyes can be mounted. These bumps must be plain green furry material: no white eyeballs, no pupils, no visible eye sockets. Match the reference's lime body silhouette."
+    },
+    {
+      "color": "yellow",
+      "file": "src/assets/dots/yellow-body.png",
+      "prompt": "Create a production animation asset for a web app, using the attached four plush dots as identity reference. This is ONLY the clean furry BODY layer for a character rig. The eyes, hats and glasses will be rendered and animated separately in the app. One single character body only, centered, full body visible, almost straight-on front view, bottom resting on a horizontal baseline, absolutely transparent background. Match the reference's richly tactile short plush fibers, softly stuffed cushion volume, rounded silhouette and saturated color. Premium soft studio lighting, natural gentle self shading. No ground plane, no cast floor shadow, no text, no logos, no limbs, no extra objects. Body occupies about 80 percent of a square canvas, generous transparent margin. Do not include any eyes, face, mouth, nose, accessories, hats, glasses or sunglasses. Preserve the distinctive BODY silhouette, this is deliberately a blank rig plate, not a complete mascot. The YELLOW character. A softly rounded triangular plush cushion, rounded apex at center top, broad flat rounded base, vivid sunny golden yellow plush fibers. Preserve the reference's yellow triangular body. Remove the round spectacles and all eyes and face completely."
+    },
+    {
+      "color": "pink",
+      "file": "src/assets/dots/pink-body.png",
+      "prompt": "Create a production animation asset for a web app, using the attached four plush dots as identity reference. This is ONLY the clean furry BODY layer for a character rig. The eyes, hats and glasses will be rendered and animated separately in the app. One single character body only, centered, full body visible, almost straight-on front view, bottom resting on a horizontal baseline, absolutely transparent background. Match the reference's richly tactile short plush fibers, softly stuffed cushion volume, rounded silhouette and saturated color. Premium soft studio lighting, natural gentle self shading. No ground plane, no cast floor shadow, no text, no logos, no limbs, no extra objects. Body occupies about 80 percent of a square canvas, generous transparent margin. Do not include any eyes, face, mouth, nose, accessories, hats, glasses or sunglasses. Preserve the distinctive BODY silhouette, this is deliberately a blank rig plate, not a complete mascot. The PINK character. A hot magenta pink plush cushion with two rounded upright lobes, a shallow center dip at the top, like a wide rounded heart or M, smoothly bulging sides and broad rounded flat bottom. Match the reference silhouette exactly. Remove sunglasses and all facial features completely."
+    }
+  ]
+}

@@ -74,6 +74,7 @@ export default function App() {
   const active = camera.state === 'active';
   const busy = camera.state === 'loading' || camera.state === 'requesting';
   const success = active && feedback.status === 'success';
+  const achievement = active ? feedback.completedSteps : 0;
   function choose(id: SignId) {
     current.current = id;
     setSelected(id);
@@ -100,7 +101,10 @@ export default function App() {
           </span>
           dots <span className="brand-amp">&</span> signs
         </a>
-        <span className="header-caption">手から、つながろう。</span>
+        <div className="header-companion">
+          <span className="header-caption">手から、つながろう。</span>
+          <Dot color="pink" achievement={achievement} />
+        </div>
       </header>
       <main id="practice" tabIndex={-1}>
         <div className="page-title">
@@ -129,7 +133,10 @@ export default function App() {
           aria-labelledby="lesson-title"
         >
           <div className="lesson-heading">
-            <h2 id="lesson-title">{lesson.label}</h2>
+            <div className="lesson-title-group">
+              <h2 id="lesson-title">{lesson.label}</h2>
+              <Dot color="yellow" achievement={achievement} />
+            </div>
             <PracticeProgress lesson={lesson} feedback={feedback} active={active} />
           </div>
           <div className="practice-grid">
@@ -284,7 +291,7 @@ export default function App() {
                 )}
               </div>
               <div className="companion">
-                <Dot mood={success ? 'happy' : active ? 'thinking' : 'idle'} />
+                <Dot color="green" achievement={achievement} />
                 <div className="companion-message">
                   <span>dots</span>
                   <p role="status" aria-live="polite" aria-atomic="true">

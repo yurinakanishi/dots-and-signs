@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Check, Pause, Play } from 'lucide-react';
 import type { Lesson } from '../lib/lessons';
 import type { Feedback, SignId } from '../lib/types';
+import { Dot } from './Dot';
 
 type Shape = 'two' | 'index' | 'bow' | 'open' | 'flat' | 'edge' | 'rest';
 type Position = { x: number; y: number; angle?: number; flip?: boolean; shape: Shape };
@@ -119,98 +120,106 @@ export function SignDemo({ lesson, feedback }: { lesson: Lesson; feedback?: Feed
           </button>
         )}
       </div>
-      <svg
-        className="sign-demo"
-        viewBox="0 0 420 325"
-        role="img"
-        aria-label={lesson.label + '：' + lesson.steps[currentStep]}
-      >
-        <ellipse cx="210" cy="166" rx="141" ry="135" fill="#e9eddf" />
-        <ellipse cx="210" cy="310" rx="92" ry="8" fill="#cbd4bd" opacity=".35" />
-        <path
-          d="M133 310 L139 211 Q144 175 185 174 L235 174 Q275 176 281 211 L288 310Z"
-          fill="#a9ba91"
-          stroke="#7f946c"
-          strokeWidth="2"
-        />
-        <path
-          d="M192 156 L192 182 Q210 198 228 182 L228 155"
-          fill="#edc4aa"
-          stroke="#a9806d"
-          strokeWidth="1.6"
-        />
-        <g transform={bow ? 'translate(0 7) rotate(5 210 145)' : undefined} className="person-head">
-          <ellipse
-            cx="210"
-            cy="107"
-            rx="43"
-            ry="51"
+      <div className="demo-scene">
+        <svg
+          className="sign-demo"
+          viewBox="0 0 420 325"
+          role="img"
+          aria-label={lesson.label + '：' + lesson.steps[currentStep]}
+        >
+          <ellipse cx="210" cy="166" rx="141" ry="135" fill="#e9eddf" />
+          <ellipse cx="210" cy="310" rx="92" ry="8" fill="#cbd4bd" opacity=".35" />
+          <path
+            d="M133 310 L139 211 Q144 175 185 174 L235 174 Q275 176 281 211 L288 310Z"
+            fill="#a9ba91"
+            stroke="#7f946c"
+            strokeWidth="2"
+          />
+          <path
+            d="M192 156 L192 182 Q210 198 228 182 L228 155"
             fill="#edc4aa"
             stroke="#a9806d"
             strokeWidth="1.6"
           />
-          <path
-            d="M167 105 Q150 53 188 48 Q223 32 246 64 Q256 81 251 108 L242 87 Q214 92 200 68 Q187 88 174 87Z"
-            fill="#38473c"
-          />
-          <path
-            d="M188 104 Q192 100 196 104 M224 104 Q228 100 232 104"
-            fill="none"
-            stroke="#38473c"
-            strokeWidth="2.6"
-            strokeLinecap="round"
-          />
-          <path
-            d="M204 126 Q211 132 219 125"
-            fill="none"
-            stroke="#8e6457"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-          <ellipse cx="183" cy="119" rx="7" ry="3.5" fill="#deaa93" />
-          <ellipse cx="236" cy="119" rx="7" ry="3.5" fill="#deaa93" />
-        </g>
-        {hands.map((h, i) =>
-          h && h.shape !== 'rest' ? (
-            <g key={i}>
-              <path
-                d={`M${i === 0 ? 151 : 269} 203 Q${i === 0 ? 108 : 312} 277 ${h.x} ${h.y}`}
-                fill="none"
-                stroke="#7f946c"
-                strokeWidth="25"
-                strokeLinecap="round"
-              />
-              <path
-                d={`M${i === 0 ? 151 : 269} 203 Q${i === 0 ? 108 : 312} 277 ${h.x} ${h.y}`}
-                fill="none"
-                stroke="#a9ba91"
-                strokeWidth="21"
-                strokeLinecap="round"
-              />
-              <g
-                transform={`translate(${h.x} ${h.y}) rotate(${h.angle ?? 0}) scale(${h.flip ? -0.74 : h.shape === 'flat' ? 0.32 : 0.74} .74)`}
-              >
-                <Hand shape={h.shape} />
-              </g>
-            </g>
-          ) : null,
-        )}
-        {lesson.id === 'thanks' && frame === 2 && (
-          <path
-            d="M256 226 L256 178 M250 185 L256 177 262 185"
-            fill="none"
-            stroke="#647c53"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-          />
-        )}
-        {lesson.id === 'evening' && frame === 1 && (
-          <g fill="none" stroke="#647c53" strokeWidth="2" strokeLinecap="round">
-            <path d="M114 100 Q133 89 154 100 M146 93 L155 100 146 106" />
-            <path d="M306 100 Q287 89 266 100 M274 93 L265 100 274 106" />
+          <g
+            transform={bow ? 'translate(0 7) rotate(5 210 145)' : undefined}
+            className="person-head"
+          >
+            <ellipse
+              cx="210"
+              cy="107"
+              rx="43"
+              ry="51"
+              fill="#edc4aa"
+              stroke="#a9806d"
+              strokeWidth="1.6"
+            />
+            <path
+              d="M167 105 Q150 53 188 48 Q223 32 246 64 Q256 81 251 108 L242 87 Q214 92 200 68 Q187 88 174 87Z"
+              fill="#38473c"
+            />
+            <path
+              d="M188 104 Q192 100 196 104 M224 104 Q228 100 232 104"
+              fill="none"
+              stroke="#38473c"
+              strokeWidth="2.6"
+              strokeLinecap="round"
+            />
+            <path
+              d="M204 126 Q211 132 219 125"
+              fill="none"
+              stroke="#8e6457"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+            <ellipse cx="183" cy="119" rx="7" ry="3.5" fill="#deaa93" />
+            <ellipse cx="236" cy="119" rx="7" ry="3.5" fill="#deaa93" />
           </g>
-        )}
-      </svg>
+          {hands.map((h, i) =>
+            h && h.shape !== 'rest' ? (
+              <g key={i}>
+                <path
+                  d={`M${i === 0 ? 151 : 269} 203 Q${i === 0 ? 108 : 312} 277 ${h.x} ${h.y}`}
+                  fill="none"
+                  stroke="#7f946c"
+                  strokeWidth="25"
+                  strokeLinecap="round"
+                />
+                <path
+                  d={`M${i === 0 ? 151 : 269} 203 Q${i === 0 ? 108 : 312} 277 ${h.x} ${h.y}`}
+                  fill="none"
+                  stroke="#a9ba91"
+                  strokeWidth="21"
+                  strokeLinecap="round"
+                />
+                <g
+                  transform={`translate(${h.x} ${h.y}) rotate(${h.angle ?? 0}) scale(${h.flip ? -0.74 : h.shape === 'flat' ? 0.32 : 0.74} .74)`}
+                >
+                  <Hand shape={h.shape} />
+                </g>
+              </g>
+            ) : null,
+          )}
+          {lesson.id === 'thanks' && frame === 2 && (
+            <path
+              d="M256 226 L256 178 M250 185 L256 177 262 185"
+              fill="none"
+              stroke="#647c53"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+            />
+          )}
+          {lesson.id === 'evening' && frame === 1 && (
+            <g fill="none" stroke="#647c53" strokeWidth="2" strokeLinecap="round">
+              <path d="M114 100 Q133 89 154 100 M146 93 L155 100 146 106" />
+              <path d="M306 100 Q287 89 266 100 M274 93 L265 100 274 106" />
+            </g>
+          )}
+        </svg>
+        <div className="demo-dot">
+          <Dot color="blue" achievement={feedback?.completedSteps ?? 0} />
+        </div>
+      </div>
       <ol className="demo-steps">
         {lesson.steps.map((step, i) => (
           <li key={step}>

@@ -49,7 +49,7 @@ npm run check
 npm run preview
 ```
 
-52件の認識・追跡・進行表示のテスト、実モデル10ケースと両手検出9ケース、既存ブラウザ23項目・進行表示19項目・遅延と復帰13項目を確認しました。CRO-MAGNONの手操作を参考にした変更は[調査と設計](docs/RECOGNITION.md)、検証内容と残る制約は[検証記録](docs/QA.md)を参照してください。
+認識・追跡・進行表示の52件、ブラウザの基本23項目・進行と応援26項目・キャラクター操作22項目を確認しました。実モデル10ケース・両手検出9ケース・遅延と復帰13項目は前版での検証結果です。今回、認識処理自体は変更していません。CRO-MAGNONの手操作を参考にした変更は[調査と設計](docs/RECOGNITION.md)、検証内容と残る制約は[検証記録](docs/QA.md)を参照してください。
 
 ブラウザ確認の再実行は、開発サーバーと専用の検証ブラウザを使います。
 
@@ -61,6 +61,7 @@ npx --yes --package @playwright/cli playwright-cli -s=greetings run-code --filen
 npx --yes --package @playwright/cli playwright-cli -s=greetings run-code --filename=scripts/browser-smoke.cjs
 npx --yes --package @playwright/cli playwright-cli -s=greetings run-code --filename=scripts/verify-progress.cjs
 npx --yes --package @playwright/cli playwright-cli -s=greetings run-code --filename=scripts/verify-tracking-recovery.cjs
+npx --yes --package @playwright/cli playwright-cli -s=greetings run-code --filename=scripts/verify-characters.cjs
 npx --yes --package @playwright/cli playwright-cli -s=greetings close
 ```
 
@@ -70,6 +71,8 @@ npx --yes --package @playwright/cli playwright-cli -s=greetings close
 
 ## キャラクター
 
-ユーザー提供の参考画像をもとに、ベレー帽の青・目の大きな緑・丸眼鏡の黄色・サングラスのピンクの4体を、内蔵imagegenで背景透過PNGに加工しています。素材は同じ配信元から読み込み、4体がカメラの下で応援します。成功時には小さく跳ね、OSの「動きを減らす」設定では静止します。
+ユーザー提供の参考画像をもとに、内蔵imagegenで4体の体を個別の透過PNGにしました。目・帽子・眼鏡は独立したSVGのパーツです。青はお手本の隣、緑はカメラの下、黄色はことばの見出し、ピンクはヘッダーにいます。
+
+それぞれ違う間隔でまばたきし、マウスを目で追います。押すとクッションのようにつぶれ、離すとしゃがんでジャンプ。着地でも柔らかくつぶれ、帽子や眼鏡が少し遅れて揺れます。ピンクは触るとサングラスを持ち上げます。タッチ・Space・Enterでも操作できます。練習の1段階目で緑、2段階目で青と黄色、3段階すべてができたら4体が星と吹き出しで応援します。dotsを押しても手話の進行は変わりません。OSの「動きを減らす」設定では動かず、吹き出しで応えます。
 
 独立したハッカソン用プロトタイプで、dotsアカウントやAPIには接続していません。応援は練習状態に応じた定型文です。[素材と加工プロンプト](docs/CHARACTER_ASSET.md)・[第三者の素材・ライセンス](THIRD_PARTY_NOTICES.md)も参照してください。

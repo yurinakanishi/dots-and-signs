@@ -1,0 +1,369 @@
+.dot-character {
+  --dot-color: #61bcec;
+  --blink-time: 5.3s;
+  --blink-delay: -1.4s;
+  --gaze-x: 0px;
+  --gaze-y: 0px;
+  display: block;
+  position: relative;
+  isolation: isolate;
+  flex: 0 0 auto;
+  width: 90px;
+  height: 90px;
+  padding: 0;
+  border: 0;
+  border-radius: 35%;
+  background: transparent;
+  color: #46583d;
+  cursor: grab;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.dot-character:focus-visible {
+  outline: 2px solid #718b57;
+  outline-offset: 4px;
+}
+.dot-green {
+  --dot-color: #a7dc52;
+  --blink-time: 4.7s;
+  --blink-delay: -3s;
+}
+.dot-yellow {
+  --dot-color: #f5c541;
+  --blink-time: 6.1s;
+  --blink-delay: -4.4s;
+}
+.dot-pink {
+  --dot-color: #ee73c8;
+  --blink-time: 5.8s;
+  --blink-delay: -0.6s;
+}
+.dot-body,
+.dot-breath,
+.dot-artwork {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.dot-body {
+  position: relative;
+  transform-origin: 50% 87.5%;
+  transition: transform 140ms cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.dot-artwork {
+  overflow: visible;
+}
+.dot-breath {
+  transform-origin: 50% 87.5%;
+  animation: dot-breathe 5s ease-in-out infinite;
+}
+.dot-green .dot-breath {
+  animation-delay: -1.2s;
+}
+.dot-yellow .dot-breath {
+  animation-delay: -2.8s;
+}
+.dot-pink .dot-breath {
+  animation-delay: -3.6s;
+}
+.dot-gaze {
+  transform: translate(var(--gaze-x), var(--gaze-y));
+  transition: transform 180ms ease-out;
+}
+.dot-blink {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: dot-blink var(--blink-time) var(--blink-delay) infinite;
+}
+.dot-accessory {
+  transform-box: fill-box;
+  transform-origin: 50% 85%;
+}
+.dot-shadow {
+  position: absolute;
+  width: 73%;
+  height: 8%;
+  left: 14%;
+  top: 84%;
+  border-radius: 50%;
+  background: #273e1f17;
+  filter: blur(3px);
+  transition:
+    transform 140ms,
+    opacity 140ms;
+}
+.dot-pressed {
+  cursor: grabbing;
+}
+.dot-pressed .dot-body {
+  transform: scale(1.16, 0.7) rotate(-2deg);
+}
+.dot-pressed .dot-breath {
+  animation-play-state: paused;
+}
+.dot-pressed .dot-shadow {
+  transform: scaleX(1.2);
+}
+.dot-pressed .dot-blink {
+  animation: none;
+  transform: scaleY(0.17);
+}
+.dot-jump .dot-body {
+  animation: dot-jump 1050ms both;
+}
+.dot-jump .dot-breath {
+  animation: none;
+}
+.dot-jump .dot-shadow {
+  animation: dot-jump-shadow 1050ms both;
+}
+.dot-jump .dot-accessory {
+  animation: dot-accessory-bounce 1050ms both;
+}
+.dot-jump .dot-eyestalks {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: dot-eyes-bounce 1050ms both;
+}
+.dot-pink:is(:hover, :focus-visible, .dot-pressed) .dot-sunglasses {
+  transform: translateY(-200px) rotate(-6deg);
+}
+.dot-sunglasses {
+  transition: transform 260ms ease;
+}
+.dot-surprise {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.dot-bubble {
+  position: absolute;
+  bottom: 94%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 5px 9px;
+  border: 1px solid #e6ebdf;
+  background: #fffefa;
+  box-shadow: 0 3px 12px #273e1f0a;
+  border-radius: 12px 12px 12px 3px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  animation: dot-bubble 1150ms both;
+}
+.dot-reward .dot-bubble {
+  animation-duration: 1800ms;
+}
+.dot-confetti {
+  position: absolute;
+  inset: 0;
+}
+.dot-confetti i {
+  position: absolute;
+  top: 44%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  background: var(--dot-color);
+  clip-path: polygon(50% 0, 64% 35%, 100% 50%, 64% 65%, 50% 100%, 36% 65%, 0 50%, 36% 35%);
+  animation: dot-pop 950ms 160ms both;
+  --pop-x: -36px;
+  --pop-y: -33px;
+}
+.dot-confetti i:nth-child(2) {
+  --pop-x: 36px;
+  --pop-y: -44px;
+  animation-delay: 210ms;
+  background: #f2c550;
+}
+.dot-confetti i:nth-child(3) {
+  --pop-x: -30px;
+  --pop-y: -66px;
+  animation-delay: 250ms;
+  width: 5px;
+  height: 5px;
+}
+.dot-confetti i:nth-child(4) {
+  --pop-x: 32px;
+  --pop-y: 2px;
+  animation-delay: 270ms;
+  background: #9bcf70;
+  width: 5px;
+  height: 5px;
+}
+.dot-confetti i:nth-child(5) {
+  --pop-x: 8px;
+  --pop-y: -78px;
+  animation-delay: 190ms;
+  background: #ed86bb;
+  width: 6px;
+  height: 6px;
+}
+.dot-touch-hint {
+  opacity: 0;
+  position: absolute;
+  left: 50%;
+  top: 97%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  white-space: nowrap;
+  pointer-events: none;
+  color: #78816e;
+  transition: opacity 150ms;
+}
+.dot-idle:is(:hover, :focus-visible) .dot-touch-hint {
+  opacity: 1;
+}
+@keyframes dot-breathe {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(1.018, 0.982);
+  }
+}
+@keyframes dot-blink {
+  0%,
+  40%,
+  44%,
+  72%,
+  76%,
+  100% {
+    transform: scaleY(1);
+  }
+  42%,
+  74% {
+    transform: scaleY(0.06);
+  }
+}
+@keyframes dot-jump {
+  0% {
+    transform: scale(1, 1);
+  }
+  16% {
+    transform: scale(1.18, 0.68) rotate(-3deg);
+  }
+  29% {
+    transform: translateY(-10%) scale(0.84, 1.19) rotate(-4deg);
+  }
+  48% {
+    transform: translateY(-33%) scale(1.02, 0.98) rotate(4deg);
+  }
+  64% {
+    transform: translateY(-3%) scale(0.95, 1.06);
+  }
+  73% {
+    transform: scale(1.2, 0.7) rotate(2deg);
+  }
+  85% {
+    transform: translateY(-5%) scale(0.96, 1.04);
+  }
+  94% {
+    transform: scale(1.035, 0.96);
+  }
+  100% {
+    transform: scale(1, 1);
+  }
+}
+@keyframes dot-jump-shadow {
+  0%,
+  100% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  16%,
+  73% {
+    transform: scaleX(1.25);
+    opacity: 1;
+  }
+  48% {
+    transform: scale(0.65);
+    opacity: 0.35;
+  }
+}
+@keyframes dot-accessory-bounce {
+  0%,
+  100% {
+    transform: none;
+  }
+  28% {
+    transform: translateY(35px) rotate(-5deg);
+  }
+  49% {
+    transform: translateY(-48px) rotate(5deg);
+  }
+  73% {
+    transform: translateY(21px) rotate(-5deg);
+  }
+  85% {
+    transform: translateY(-18px) rotate(3deg);
+  }
+}
+@keyframes dot-eyes-bounce {
+  0%,
+  100% {
+    transform: none;
+  }
+  29% {
+    transform: scaleY(0.9);
+  }
+  55% {
+    transform: scaleY(1.08);
+  }
+  76% {
+    transform: scaleY(0.92);
+  }
+}
+@keyframes dot-pop {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  22% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--pop-x), var(--pop-y)) scale(0.5) rotate(100deg);
+    opacity: 0;
+  }
+}
+@keyframes dot-bubble {
+  0%,
+  12% {
+    opacity: 0;
+    transform: translate(-50%, 5px) scale(0.8);
+  }
+  24%,
+  78% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot-character *,
+  .dot-character {
+    animation: none !important;
+    transition: none !important;
+  }
+  .dot-pressed .dot-body {
+    transform: scale(1.03, 0.96);
+  }
+  .dot-bubble {
+    opacity: 1;
+  }
+  .dot-confetti i {
+    transform: translate(var(--pop-x), var(--pop-y));
+    opacity: 0.7;
+  }
+  .dot-pink:is(:hover, :focus-visible, .dot-pressed) .dot-sunglasses {
+    transform: translateY(-200px);
+  }
+}

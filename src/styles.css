@@ -165,11 +165,6 @@ button svg {
   padding: 26px 32px 23px;
   border-bottom: 1px solid #edf0e6;
 }
-.lesson-heading > div {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
 .lesson-english {
   font-size: 11px;
   letter-spacing: 1.2px;
@@ -421,6 +416,7 @@ button svg {
   padding: 18px 16px 42px;
 }
 .success-check {
+  flex-shrink: 0;
   background: #dbeac5;
   border-radius: 50%;
   color: #4b6d30;
@@ -447,53 +443,6 @@ button svg {
   min-height: 93px;
   gap: 16px;
   padding: 8px 2px 0;
-}
-.dot-character {
-  position: relative;
-  width: 196px;
-  aspect-ratio: 3;
-  flex-shrink: 0;
-}
-.dot-body {
-  display: block;
-  width: 100%;
-  height: auto;
-  user-select: none;
-  transform-origin: center bottom;
-  animation: breathe 4.5s ease-in-out infinite;
-}
-.dot-thinking .dot-body {
-  animation-duration: 3s;
-}
-.dot-happy .dot-body {
-  animation: celebrate 0.8s ease-in-out 3;
-}
-.dot-sparkles {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.dot-sparkles i {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  left: 17%;
-  top: -5px;
-  background: #f9cc41;
-  clip-path: polygon(50% 0%, 64% 36%, 100% 50%, 64% 64%, 50% 100%, 36% 64%, 0% 50%, 36% 36%);
-  animation: twinkle 0.8s ease-in-out 3;
-}
-.dot-sparkles i:nth-child(2) {
-  left: 62%;
-  top: -8px;
-  background: #ee50c7;
-  animation-delay: 0.1s;
-}
-.dot-sparkles i:nth-child(3) {
-  left: 92%;
-  top: 0;
-  background: #24b7f2;
-  animation-delay: 0.2s;
 }
 .companion-message {
   padding: 8px 0;
@@ -552,21 +501,6 @@ button svg {
     transform: rotate(360deg);
   }
 }
-@keyframes breathe {
-  50% {
-    transform: translateY(-2px);
-  }
-}
-@keyframes celebrate {
-  50% {
-    transform: translateY(-6px) rotate(-1deg);
-  }
-}
-@keyframes twinkle {
-  50% {
-    transform: scale(1.3) rotate(15deg);
-  }
-}
 @media (min-width: 1500px) {
   .site-header {
     height: 104px;
@@ -614,9 +548,6 @@ button svg {
   }
   .page-title h1 {
     font-size: 32px;
-  }
-  .dot-character {
-    width: 150px;
   }
   .companion-message p {
     font-size: 12px;
@@ -974,6 +905,81 @@ button svg {
   height: 100%;
   background: #8eab64;
 }
+.lesson-title-group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+.lesson-title-group .dot-character {
+  width: 64px;
+  height: 64px;
+  margin-top: -12px;
+  margin-bottom: -8px;
+}
+.lesson-title-group .dot-bubble {
+  bottom: 72%;
+  left: calc(100% + 8px);
+  transform: none;
+  animation-name: heading-dot-bubble;
+  z-index: 2;
+}
+.demo-scene {
+  position: relative;
+  min-width: 0;
+}
+.demo-dot {
+  position: absolute;
+  bottom: 0;
+  left: -2px;
+}
+.demo-dot .dot-character {
+  width: 102px;
+  height: 102px;
+}
+.companion .dot-character {
+  width: 84px;
+  height: 84px;
+}
+.header-companion {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.header-companion .dot-character {
+  width: 72px;
+  height: 64px;
+}
+.header-companion .dot-bubble {
+  bottom: 30%;
+  left: auto;
+  right: 95%;
+  transform: none;
+  animation-name: heading-dot-bubble;
+}
+.header-companion .dot-confetti {
+  overflow: clip;
+  overflow-clip-margin: 8px;
+}
+.header-companion .dot-touch-hint {
+  top: 80%;
+}
+@keyframes heading-dot-bubble {
+  0%,
+  12% {
+    opacity: 0;
+    translate: 0 4px;
+  }
+  24%,
+  78% {
+    opacity: 1;
+    translate: 0 0;
+  }
+  100% {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
 @media (max-width: 950px) {
   .practice-progress {
     gap: 6px;
@@ -988,11 +994,25 @@ button svg {
   .lesson-heading {
     gap: 16px;
   }
+  .lesson-title-group {
+    gap: 0;
+  }
+  .lesson-title-group .dot-character {
+    width: 54px;
+    height: 54px;
+  }
+  .demo-dot .dot-character {
+    width: 82px;
+    height: 82px;
+  }
 }
 @media (min-width: 701px) and (max-height: 800px) {
   .is-practicing .camera-stage {
     height: 218px;
     margin-top: 4px;
+  }
+  .success-overlay .success-check {
+    display: none;
   }
 }
 @media (max-width: 700px) {
@@ -1035,6 +1055,51 @@ button svg {
   }
   .is-practicing .demo-panel .panel-label {
     grid-column: 1 / -1;
+  }
+  .lesson-title-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .lesson-title-group .dot-character {
+    width: 66px;
+    height: 66px;
+    margin-top: -22px;
+    margin-bottom: -12px;
+  }
+  .lesson-title-group .dot-bubble {
+    left: auto;
+    right: calc(100% + 3px);
+    bottom: 32%;
+  }
+  .demo-dot .dot-character {
+    width: 88px;
+    height: 88px;
+  }
+  .is-practicing .demo-scene {
+    align-self: center;
+  }
+  .is-practicing .demo-dot {
+    left: -14px;
+    bottom: -8px;
+  }
+  .is-practicing .demo-dot .dot-character {
+    width: 54px;
+    height: 54px;
+  }
+  .is-practicing .demo-dot .dot-bubble {
+    left: 65%;
+    font-size: 9px;
+  }
+  .companion .dot-character {
+    width: 70px;
+    height: 70px;
+  }
+  .header-companion .header-caption {
+    display: none;
+  }
+  .header-companion .dot-character {
+    width: 66px;
+    height: 66px;
   }
   .is-practicing .sign-demo {
     height: 144px;
