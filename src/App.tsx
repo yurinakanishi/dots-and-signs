@@ -67,6 +67,8 @@ export default function App() {
           <span className="brand-mark" aria-hidden="true">
             <i />
             <i />
+            <i />
+            <i />
           </span>
           dots <span className="brand-amp">&</span> signs
         </a>
@@ -223,9 +225,9 @@ export default function App() {
                   </button>
                 )}
               </div>
-              <div className="companion" aria-live="polite" aria-atomic="true">
+              <div className="companion">
                 <Dot mood={success ? 'happy' : active ? 'thinking' : 'idle'} />
-                <div className="companion-message">
+                <div className="companion-message" aria-live="polite" aria-atomic="true">
                   <span>dots</span>
                   <p>{cheer}</p>
                 </div>

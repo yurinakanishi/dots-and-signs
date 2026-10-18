@@ -70,22 +70,27 @@ button svg {
   color: #859176;
 }
 .brand-mark {
-  display: flex;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: repeat(2, 8px);
+  gap: 3px;
   margin-right: 8px;
-  align-items: center;
   transform: rotate(-12deg);
 }
 .brand-mark i {
   display: block;
-  width: 12px;
-  height: 18px;
-  background: #6e854b;
-  border-radius: 8px;
+  width: 8px;
+  height: 8px;
+  background: #24b7f2;
+  border-radius: 50%;
 }
-.brand-mark i + i {
-  height: 12px;
-  background: #a5bd76;
+.brand-mark i:nth-child(2) {
+  background: #a9d443;
+}
+.brand-mark i:nth-child(3) {
+  background: #f9cc41;
+}
+.brand-mark i:nth-child(4) {
+  background: #ee50c7;
 }
 .header-caption {
   font-size: 12px;
@@ -465,28 +470,59 @@ button svg {
   display: flex;
   align-items: center;
   min-height: 93px;
-  gap: 8px;
+  gap: 16px;
   padding: 8px 2px 0;
 }
 .dot-character {
-  width: 98px;
-  height: 86px;
+  position: relative;
+  width: 196px;
+  aspect-ratio: 3;
   flex-shrink: 0;
-  overflow: visible;
 }
 .dot-body {
-  transform-origin: 120px 183px;
-  animation: breathe 4s ease-in-out infinite;
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  transform-origin: center bottom;
+  animation: breathe 4.5s ease-in-out infinite;
+}
+.dot-thinking .dot-body {
+  animation-duration: 3s;
 }
 .dot-happy .dot-body {
   animation: celebrate 0.8s ease-in-out 3;
 }
-.dot-happy .dot-arm-right {
-  transform-origin: 180px 117px;
-  animation: wave 0.8s ease-in-out 3;
+.dot-sparkles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.dot-sparkles i {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  left: 17%;
+  top: -5px;
+  background: #f9cc41;
+  clip-path: polygon(50% 0%, 64% 36%, 100% 50%, 64% 64%, 50% 100%, 36% 64%, 0% 50%, 36% 36%);
+  animation: twinkle 0.8s ease-in-out 3;
+}
+.dot-sparkles i:nth-child(2) {
+  left: 62%;
+  top: -8px;
+  background: #ee50c7;
+  animation-delay: 0.1s;
+}
+.dot-sparkles i:nth-child(3) {
+  left: 92%;
+  top: 0;
+  background: #24b7f2;
+  animation-delay: 0.2s;
 }
 .companion-message {
   padding: 8px 0;
+  min-width: 0;
   flex: 1;
 }
 .companion-message > span {
@@ -543,17 +579,17 @@ button svg {
 }
 @keyframes breathe {
   50% {
-    transform: translateY(-3px) rotate(-1deg);
+    transform: translateY(-2px);
   }
 }
 @keyframes celebrate {
   50% {
-    transform: translateY(-7px) rotate(3deg);
+    transform: translateY(-6px) rotate(-1deg);
   }
 }
-@keyframes wave {
+@keyframes twinkle {
   50% {
-    transform: rotate(-20deg);
+    transform: scale(1.3) rotate(15deg);
   }
 }
 @media (min-width: 1500px) {
@@ -605,8 +641,7 @@ button svg {
     font-size: 32px;
   }
   .dot-character {
-    width: 80px;
-    height: 75px;
+    width: 150px;
   }
   .companion-message p {
     font-size: 12px;
@@ -712,6 +747,7 @@ button svg {
   }
   .companion {
     min-height: 99px;
+    gap: 12px;
   }
   .companion-message p {
     font-size: 12px;
@@ -815,10 +851,6 @@ button svg {
   }
   .companion {
     min-height: 74px;
-  }
-  .dot-character {
-    width: 80px;
-    height: 70px;
   }
   .page-footer {
     padding-top: 14px;

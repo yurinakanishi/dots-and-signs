@@ -1,6 +1,6 @@
 # dots & signs
 
-**ひとことを、手話で。** dotsを着想源にしたキャラクターと、「こんにちは・こんばんは・ありがとう」を練習するDevDayアプリです。
+**ひとことを、手話で。** 青・緑・黄色・ピンクの4体のdotsと、「こんにちは・こんばんは・ありがとう」を練習するDevDayアプリです。
 
 [ChatGPT Site](https://dots-sign-yurin-devday.yurinakanishi33.chatgpt.site) · [GitHub](https://github.com/yurinakanishi/dots-sign)（どちらも本人限定）
 
@@ -63,4 +63,6 @@ npx --yes --package @playwright/cli playwright-cli -s=greetings close
 
 ## キャラクター
 
-OpenAIのdotsを着想源にした独自のSVGです。公式素材・公式連携ではなく、dotsアカウントやAPIには接続していません。応援は練習状態に応じた定型文です。[第三者の素材・ライセンス](THIRD_PARTY_NOTICES.md)も参照してください。
+ユーザー提供の参考画像をもとに、ベレー帽の青・目の大きな緑・丸眼鏡の黄色・サングラスのピンクの4体を、内蔵imagegenで背景透過PNGに加工しています。素材は同じ配信元から読み込み、4体がカメラの下で応援します。成功時には小さく跳ね、OSの「動きを減らす」設定では静止します。
+
+独立したハッカソン用プロトタイプで、dotsアカウントやAPIには接続していません。応援は練習状態に応じた定型文です。[素材と加工プロンプト](docs/CHARACTER_ASSET.md)・[第三者の素材・ライセンス](THIRD_PARTY_NOTICES.md)も参照してください。
