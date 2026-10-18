@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { ArrowRight, Camera, Check, LoaderCircle, RotateCcw, VideoOff } from 'lucide-react';
+import { Camera, Check, LoaderCircle, RotateCcw, VideoOff } from 'lucide-react';
 import { Dot } from './components/Dot';
 import { SignDemo } from './components/SignDemo';
 import { PracticeProgress } from './components/PracticeProgress';
@@ -190,7 +190,11 @@ export default function App() {
                         <small>この段階は{feedback.requiredHands}本</small>
                       </span>
                       <span className={feedback.bodyVisible ? 'detected' : 'detection-missing'}>
-                        {feedback.bodyVisible ? '顔・肩 OK' : '顔と肩も映してね'}
+                        {feedback.bodyVisible
+                          ? '体の位置 OK'
+                          : selected === 'hello' && feedback.completedSteps > 0
+                            ? '肩も映してね'
+                            : '顔と肩も映してね'}
                       </span>
                     </>
                   )}
@@ -288,17 +292,6 @@ export default function App() {
                     </span>
                     <h3>できたね！</h3>
                     <p>3つの動きを、順番に確認できたよ。</p>
-                    <button
-                      className="primary-button"
-                      onClick={() =>
-                        coach.selectLessonManually(
-                          lessons[(lessons.indexOf(lesson) + 1) % lessons.length].id,
-                        )
-                      }
-                    >
-                      次のことばへ
-                      <ArrowRight size={17} />
-                    </button>
                     <button className="text-button" onClick={reset}>
                       <RotateCcw size={14} />
                       もう一度

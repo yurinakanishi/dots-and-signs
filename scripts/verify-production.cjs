@@ -16,11 +16,11 @@ async (page) => {
     await page.goto('http://127.0.0.1:5174/');
     await page.getByRole('heading', { name: 'ひとことを、手話で。' }).waitFor();
     assert(
-      (await page.getByRole('navigation').getByRole('button').count()) === 4,
-      'production bundle renders four lessons',
+      (await page.getByRole('navigation').getByRole('button').count()) === 1,
+      'production bundle renders only the hello lesson',
     );
     await page.waitForFunction(() => [...document.querySelectorAll('.lesson-thumbnail img')].every(image => image.complete && image.naturalWidth > 0));
-    assert(true, 'four supplied images are served by the production build');
+    assert(true, 'the hello image is served by the production build');
     const artwork = await page.evaluate(async () => {
       const urls = [...document.querySelectorAll('.dot-artwork image')].map(image => image.getAttribute('href'));
       return urls.length > 0 && (await Promise.all(urls.map(async url => {
@@ -32,11 +32,8 @@ async (page) => {
     assert(artwork, 'character bodies are real image URLs in both bundlers');
     assert(await page.getByRole('button', { name: '音声入力モード Coming Soon', exact: true }).isDisabled(), 'voice mode is Coming Soon and cannot be activated');
     assert(await page.getByRole('switch', { name: '音声入力', exact: true }).count() === 0, 'voice controls are not rendered');
-    for (const name of ['こんばんは', 'ありがとう', 'OpenAIへようこそ', 'こんにちは']) {
-      await page.getByRole('button', { name, exact: true }).click();
-      await page.getByRole('heading', { name, exact: true }).waitFor();
-    }
-    assert(voiceRequests === 0, 'all four choices work without contacting the voice API');
+    await page.getByRole('heading', { name: 'こんにちは', exact: true }).waitFor();
+    assert(voiceRequests === 0, 'hello is available without contacting the voice API');
     const probe = await page.evaluate(async () => {
       const status = await (await fetch('/api/live/status')).json();
       const env = await fetch('/.env'),
@@ -102,7 +99,7 @@ async (page) => {
     });
     await page.screenshot({ path: 'output/playwright/local-ready.png', fullPage: true });
     await page.setViewportSize({ width: 320, height: 800 });
-    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Coming Soon and the four choices fit a 320px screen');
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Coming Soon and the hello choice fit a 320px screen');
     await page.screenshot({ path: 'output/playwright/sites-coming-soon-mobile.png', fullPage: true });
     return { passed: checks.length, checks };
   } finally {

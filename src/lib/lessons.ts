@@ -11,6 +11,7 @@ export type Lesson = {
   shortSteps: string[];
   cheer: string;
   image: { src: string; alt: string };
+  stepImages?: { src: string; alt: string }[];
   voiceIntent: string;
   practiceNote?: string;
 };
@@ -22,7 +23,24 @@ export const lessons: Lesson[] = [
     label: 'こんにちは',
     english: 'Hello',
     intro: '会えたうれしさを、手から。',
-    image: { src: '/lesson-images/hello.png', alt: '2本の指を額に近づける青いdots' },
+    image: {
+      src: '/lesson-images/hello-step-1.png',
+      alt: '人差し指と中指をそろえ、額の中央に当てる青いdots',
+    },
+    stepImages: [
+      {
+        src: '/lesson-images/hello-step-1.png',
+        alt: 'ステップ1：人差し指と中指の2本をそろえ、額の中央に当てる',
+      },
+      {
+        src: '/lesson-images/hello-step-2.png',
+        alt: 'ステップ2：胸の前で両手の人差し指を1本ずつ立て、近づける',
+      },
+      {
+        src: '/lesson-images/hello-step-3.png',
+        alt: 'ステップ3：両手の人差し指を互いに向けて曲げ、おじぎさせる',
+      },
+    ],
     voiceIntent: '「こんにちは」を練習・表現したい明確な依頼',
     shortSteps: ['額に2本の指', '両手の指を立てる', '指でおじぎ'],
     steps: [
@@ -31,58 +49,6 @@ export const lessons: Lesson[] = [
       '人差し指を曲げて、軽く会釈。',
     ],
     cheer: 'いいね！ あいさつの動きができたよ。',
-  },
-  {
-    id: 'evening',
-    recognitionId: 'evening',
-    label: 'こんばんは',
-    english: 'Good evening',
-    intro: '一日の終わりに、やさしいあいさつ。',
-    image: { src: '/lesson-images/evening.png', alt: '開いた両手を顔の前で交差させる青いdots' },
-    voiceIntent: '「こんばんは」を練習・表現したい明確な依頼',
-    shortSteps: ['顔の横に両手', '目の前で交差', '指でおじぎ'],
-    steps: [
-      '両手のひらを前に向け、顔の左右へ。',
-      '目の前で両手を交差させる。',
-      '両手の人差し指を近づけて曲げ、会釈。',
-    ],
-    cheer: 'その調子！ 夜のあいさつができたね。',
-  },
-  {
-    id: 'thanks',
-    recognitionId: 'thanks',
-    label: 'ありがとう',
-    english: 'Thank you',
-    intro: '小さな感謝を、ひとつ。',
-    image: {
-      src: '/lesson-images/thanks.png',
-      alt: '水平にした手の上にもう片方の手を立てる青いdots',
-    },
-    voiceIntent: '感謝・お礼・「ありがとう」を練習・表現したい明確な依頼',
-    shortSteps: ['手の甲を上に', 'もう片方をのせる', '上の手を上げる'],
-    steps: [
-      '片手を胸の前へ。手の甲を上に。',
-      'もう片方の手を、小指側から直角にのせる。',
-      '上の手をすっと上げ、軽く会釈。',
-    ],
-    cheer: 'いい動き！ 「ありがとう」を大切に。',
-  },
-  {
-    id: 'welcome',
-    recognitionId: null,
-    label: 'OpenAIへようこそ',
-    english: 'Welcome to OpenAI',
-    intro: '歓迎の気持ちを、ひらいた手で。',
-    image: {
-      src: '/lesson-images/welcome.png',
-      alt: '両手のひらを上に向けて開いた青いdotsの歓迎ポーズ',
-    },
-    voiceIntent: '「OpenAIへようこそ」「ようこそ」や歓迎のポーズを練習したい明確な依頼',
-    shortSteps: ['歓迎のポーズ'],
-    steps: ['画像を見ながら、両手を開いて手のひらを上に向けてみよう。'],
-    cheer: '画像と見比べながら、ゆっくり練習しよう。',
-    practiceNote:
-      '今は「ようこそ」の歓迎ポーズを練習します。「OpenAI」の指文字は確認中です。動きの自動判定はありません。',
   },
 ];
 

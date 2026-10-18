@@ -542,6 +542,7 @@ export class LiveCoach {
       );
   };
   selectLessonManually = (id: LessonId) => {
+    if (!isLessonId(id)) return;
     this.dismissRecommendation();
     this.update({ notice: '' });
     this.applyLesson(id);

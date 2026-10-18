@@ -76,6 +76,11 @@ export class SignRecognizer {
   private preparing = false;
   private holdSince: number | null = null;
   private holdFrames = 0;
+  private holdLastAt: number | null = null;
+  private holdMatched = false;
+  private holdGoodMs = 0;
+  private holdNoiseMs = 0;
+  private holdMisses = 0;
   private holdProgress = 0;
   private missingSince: number | null = null;
   private lastTimestamp: number | null = null;
@@ -119,9 +124,35 @@ export class SignRecognizer {
   private clearHold() {
     this.holdSince = null;
     this.holdFrames = 0;
+    this.holdLastAt = null;
+    this.holdMatched = false;
+    this.holdGoodMs = 0;
+    this.holdNoiseMs = 0;
+    this.holdMisses = 0;
     this.holdProgress = 0;
   }
   private settle(ok: boolean, time: number, duration: number = RECOGNITION.settleMs) {
+    if (this.sign === 'hello') {
+      // A single noisy estimate must not erase an otherwise sustained pose.
+      // Only intervals bounded by matching frames earn time; mismatches never
+      // advance a step. Allow at most one noisy result and 500 ms including
+      // its adjacent intervals, so slower cameras get the same one-frame grace.
+      if (this.holdLastAt !== null) {
+        const elapsed = time - this.holdLastAt;
+        if (ok && this.holdMatched) this.holdGoodMs += elapsed;
+        else this.holdNoiseMs += elapsed;
+      }
+      if (!ok && this.holdSince !== null) this.holdMisses++;
+      if (this.holdMisses > 1 || this.holdNoiseMs > 500) this.clearHold();
+      if (ok) {
+        this.holdSince ??= time;
+        this.holdFrames++;
+      }
+      this.holdLastAt = time;
+      this.holdMatched = ok;
+      this.holdProgress = Math.min(0.75, Math.floor((this.holdGoodMs / duration) * 4) / 4);
+      return ok && this.holdGoodMs >= duration && this.holdFrames >= RECOGNITION.minFrames;
+    }
     if (!ok) {
       this.clearHold();
       return false;
@@ -229,7 +260,8 @@ export class SignRecognizer {
     }
     if (!isFreshFrame(frame.timestamp, receivedAt)) return this.pauseTracking(receivedAt);
     this.visibleHands = this.tracker.update(frame);
-    const body = bodyAnchor(frame);
+    const requireFace = this.sign !== 'hello' || this.phase === 'intro';
+    const body = bodyAnchor(frame, requireFace);
     this.bodyVisible = !!body;
     if (this.complete) return this.success();
     if (
@@ -243,7 +275,9 @@ export class SignRecognizer {
       return this.pause(
         frame.poses.length > 1
           ? 'ひとりずつ、練習してみよう。'
-          : '顔と肩も映してね。いまの段階で待っているよ。',
+          : requireFace
+            ? '顔と肩も映してね。いまの段階で待っているよ。'
+            : '両肩を映してね。いまの段階で待っているよ。',
         frame.timestamp,
       );
     if (
@@ -268,11 +302,15 @@ export class SignRecognizer {
     const hands: LocatedHand[] = [];
     for (const hand of this.visibleHands) {
       const m = inspectHand(hand, frame);
-      if (!m || !m.inFrame || m.palm < frame.height * 0.025 || m.palm > frame.height * 0.4)
+      if (!m || !m.inFrame || m.palm < frame.height * 0.025 || m.palm > frame.height * 0.4) {
+        // An unused resting hand may be outside the picture. It cannot veto
+        // the one-hand forehead pose, nor count toward the two-hand greeting.
+        if (this.sign === 'hello' && minimum === 1) continue;
         return this.pause(
           '指先から手首まで映してね。小さすぎるときは少し近づこう。',
           frame.timestamp,
         );
+      }
       const h: LocatedHand = {
         ...m,
         id: hand.trackId!,
@@ -290,25 +328,31 @@ export class SignRecognizer {
         return this.recover('手の位置を確かめているよ。今のステップをゆっくりやってみよう。');
       hands.push(h);
     }
+    if (hands.length < minimum)
+      return this.pause('使う手の指先から手首まで、カメラに映してね。', frame.timestamp);
     this.missingSince = null;
     this.previous = new Map(hands.map((h) => [h.id, h.at]));
     const time = frame.timestamp;
 
     if (this.sign === 'hello' && this.phase === 'intro') {
-      const h = hands.find(
+      const twoFingers = hands.filter(
         (h) =>
-          extended(h, 'index') &&
-          extended(h, 'middle') &&
-          folded(h, 'ring') &&
-          folded(h, 'pinky') &&
-          distance(h.tip, body.forehead) < 0.23 &&
-          h.up > 0.35,
+          extended(h, 'index') && extended(h, 'middle') && folded(h, 'ring') && folded(h, 'pinky'),
       );
+      // The instruction specifies fingertips at the forehead, not a vertical
+      // wrist. Approaching from either side must work too.
+      const h = twoFingers.find((h) => distance(h.tip, body.forehead) < 0.23);
       if (this.settle(!!h, time)) {
         this.next('greet', hands);
         return this.reply('ステップ1できた！ 次は、両手の人差し指を立てよう。');
       }
-      return this.reply('2本の指を額の真ん中へ。その形で少し止めてね。');
+      return this.reply(
+        h
+          ? '額の位置と2本の指はOK。その形で少し止めてね。'
+          : twoFingers.length
+            ? '指の形はOK。2本の指先を、額の真ん中に近づけてね。'
+            : '人差し指と中指の2本を伸ばして、薬指と小指をたたんでね。',
+      );
     }
 
     if (this.sign === 'evening' && (this.phase === 'intro' || this.phase === 'cross')) {

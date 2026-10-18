@@ -173,16 +173,16 @@ describe('Live coach transport and application contract', () => {
     const h = setup();
     await h.ready();
     h.created('d1');
-    h.decide('d1', 'thanks');
-    expect(h.coach.getSnapshot().recommendedLessonId).toBe('thanks');
+    h.decide('d1', 'hello');
+    expect(h.coach.getSnapshot().recommendedLessonId).toBe('hello');
     expect(h.apply).not.toHaveBeenCalled();
     h.coach.confirmLesson('evening');
     expect(h.apply).not.toHaveBeenCalled();
-    h.coach.confirmLesson('thanks');
-    h.coach.confirmLesson('thanks');
-    expect(h.apply).toHaveBeenCalledExactlyOnceWith('thanks');
+    h.coach.confirmLesson('hello');
+    h.coach.confirmLesson('hello');
+    expect(h.apply).toHaveBeenCalledExactlyOnceWith('hello');
     expect(h.sent().filter((e) => e.content?.includes('実際に表示'))).toHaveLength(0);
-    h.coach.reportDisplayedLesson('thanks');
+    h.coach.reportDisplayedLesson('hello');
     expect(h.sent().at(-1)).toMatchObject({
       type: 'session.commentary.append',
       delegation_id: 'd1',
@@ -199,19 +199,17 @@ describe('Live coach transport and application contract', () => {
     h.coach.reportDisplayedLesson('hello');
     expect(h.sent().at(-1).content).toContain('実際に表示');
   });
-  it('confirms the fourth image lesson and reports its limited scope to the coach', async () => {
+  it('rejects removed lesson choices from stale decisions', async () => {
     const h = setup();
     await h.ready();
     h.created('welcome-1');
     h.decide('welcome-1', 'welcome');
-    expect(h.coach.getSnapshot().recommendedLessonId).toBe('welcome');
+    expect(h.coach.getSnapshot().recommendedLessonId).toBeNull();
     expect(h.apply).not.toHaveBeenCalled();
     h.coach.confirmLesson('welcome');
-    h.coach.reportDisplayedLesson('welcome');
-    expect(h.apply).toHaveBeenCalledExactlyOnceWith('welcome');
+    expect(h.apply).not.toHaveBeenCalled();
     expect(h.sent().at(-1)).toMatchObject({ delegation_id: 'welcome-1' });
-    expect(h.sent().at(-1).content).toContain('「OpenAI」の指文字は確認中');
-    expect(h.sent().at(-1).content).toContain('自動判定はありません');
+    expect(h.sent().at(-1).content).toContain('有効な教材選択結果がなかった');
   });
   it('returns unsupported to the same delegation and never invents a lesson', async () => {
     const h = setup();
@@ -250,7 +248,7 @@ describe('Live coach transport and application contract', () => {
     h.created('d1');
     h.created('d2');
     h.decide('d1', 'hello');
-    h.decide('d2', 'evening');
+    h.decide('d2', 'hello');
     h.decide('d2', 'thanks');
     h.created('d1');
     h.emit({
@@ -262,7 +260,7 @@ describe('Live coach transport and application contract', () => {
         decision: { answers: [{ type: 'choice', name: 'lesson_id', choice: 'thanks' }] },
       },
     });
-    expect(h.coach.getSnapshot().recommendedLessonId).toBe('evening');
+    expect(h.coach.getSnapshot().recommendedLessonId).toBe('hello');
     expect(h.sent()).toHaveLength(1);
   });
   it('rejects unexpected choices and invalid answer shapes', async () => {
@@ -351,14 +349,14 @@ describe('Live coach transport and application contract', () => {
     h.decide('pending', 'thanks');
     h.coach.stop();
     const sentCount = h.sent().length;
-    h.coach.selectLessonManually('welcome');
-    h.coach.reportDisplayedLesson('welcome');
+    h.coach.selectLessonManually('hello');
+    h.coach.reportDisplayedLesson('hello');
     h.decide('pending', 'thanks');
     h.coach.confirmLesson('thanks');
     await h.coach.resumeAudio();
     expect(h.audio.play).not.toHaveBeenCalled();
     expect(h.sent()).toHaveLength(sentCount);
-    expect(h.apply).toHaveBeenCalledExactlyOnceWith('welcome');
+    expect(h.apply).toHaveBeenCalledExactlyOnceWith('hello');
     expect(h.coach.getSnapshot().recommendedLessonId).toBeNull();
     h.emit({ type: 'session.closed' });
     expect(h.coach.getSnapshot()).toMatchObject({ state: 'idle', finalized: true, error: '' });

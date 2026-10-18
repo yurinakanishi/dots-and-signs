@@ -44,7 +44,7 @@ export function LessonInput({
               onClick={() => coach.selectLessonManually(lesson.id)}
             >
               <span className="lesson-thumbnail">
-                <img src={lesson.image.src} alt="" width={1484} height={1060} />
+                <img src={lesson.image.src} alt="" width={1536} height={1024} />
               </span>
               <span className="lesson-choice-label">{lesson.label}</span>
               {selected === lesson.id && (

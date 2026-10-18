@@ -88,12 +88,12 @@ export function inspectHand(hand: Hand, frame: Frame) {
   };
 }
 
-export function bodyAnchor(frame: Frame) {
+export function bodyAnchor(frame: Frame, requireFace = true) {
   if (frame.poses.length !== 1) return null;
   const p = frame.poses[0];
   if (
     p.length !== 33 ||
-    ![0, 2, 5, 11, 12].every(
+    !(requireFace ? [2, 5, 11, 12] : [11, 12]).every(
       (i) =>
         finite(p[i]) &&
         Number.isFinite(p[i].visibility) &&
@@ -113,7 +113,10 @@ export function bodyAnchor(frame: Frame) {
     x: (v.x * frame.width - cx) / scale,
     y: (v.y * frame.height - cy) / scale,
   });
-  const eyes = locate({ x: (p[2].x + p[5].x) / 2, y: (p[2].y + p[5].y) / 2, z: 0 });
+  // Face coordinates are only consumed in phases that explicitly require them.
+  const eyes = requireFace
+    ? locate({ x: (p[2].x + p[5].x) / 2, y: (p[2].y + p[5].y) / 2, z: 0 })
+    : { x: 0, y: 0 };
   // Coarse forehead estimate from eyes, scaled to the person's shoulder width.
   return { cx, cy, scale, locate, eyes, forehead: { x: eyes.x, y: eyes.y - 0.17 } };
 }

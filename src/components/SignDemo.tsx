@@ -6,9 +6,11 @@ import type { Feedback } from '../lib/types';
 export function SignDemo({ lesson, feedback }: { lesson: Lesson; feedback?: Feedback }) {
   const [previewStep, setPreviewStep] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [imageFailed, setImageFailed] = useState(false);
+  const [failedImageSrc, setFailedImageSrc] = useState<string | null>(null);
   const controlled = !!feedback;
   const currentStep = feedback?.step ?? previewStep;
+  const imageStep = Math.min(feedback?.demoFrame ?? previewStep, lesson.steps.length - 1);
+  const stepImage = lesson.stepImages?.[imageStep] ?? lesson.image;
   const preparationInstruction =
     feedback?.demoFrame === 0
       ? lesson.steps[0]
@@ -23,6 +25,13 @@ export function SignDemo({ lesson, feedback }: { lesson: Lesson; feedback?: Feed
     );
     return () => window.clearInterval(timer);
   }, [playing, controlled, lesson.steps.length]);
+  useEffect(() => {
+    // Warm the following poses before a camera checkpoint changes the image.
+    lesson.stepImages?.forEach(({ src }) => {
+      const image = new Image();
+      image.src = src;
+    });
+  }, [lesson]);
 
   return (
     <section className="demo-panel" aria-label={lesson.label + 'のお手本'}>
@@ -44,22 +53,25 @@ export function SignDemo({ lesson, feedback }: { lesson: Lesson; feedback?: Feed
         ) : null}
       </div>
       <div className="demo-scene">
-        {imageFailed ? (
+        {failedImageSrc === stepImage.src ? (
           <p className="image-unavailable" role="alert">
             画像を読み込めませんでした。ページを再読み込みしてください。
           </p>
         ) : (
           <img
+            key={stepImage.src}
             className="sign-demo lesson-guide-image"
-            src={lesson.image.src}
-            alt={lesson.image.alt}
-            width={1484}
-            height={1060}
-            onError={() => setImageFailed(true)}
+            src={stepImage.src}
+            alt={stepImage.alt}
+            width={1536}
+            height={1024}
+            onError={() => setFailedImageSrc(stepImage.src)}
           />
         )}
       </div>
-      <p className="image-guide-caption">画像はポーズの参考です。動きは下の手順で確認してね。</p>
+      <p className="image-guide-caption">
+        ステップ{imageStep + 1}：{lesson.steps[imageStep]}
+      </p>
       {lesson.practiceNote && <p className="lesson-practice-note">{lesson.practiceNote}</p>}
       <ol className="demo-steps">
         {lesson.steps.map((step, i) => (
