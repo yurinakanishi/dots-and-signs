@@ -108,7 +108,9 @@ export function SignDemo({ lesson, feedback }: { lesson: Lesson; feedback?: Feed
       <div className="panel-label">
         <span>お手本</span>
         {controlled ? (
-          <span className="demo-follow">あなたのステップに連動</span>
+          <span className="demo-follow">
+            {feedback.preparing ? `ステップ${feedback.step + 1}の準備` : 'あなたのステップに連動'}
+          </span>
         ) : (
           <button
             className="play-toggle"
@@ -252,9 +254,11 @@ export function SignDemo({ lesson, feedback }: { lesson: Lesson; feedback?: Feed
           </li>
         ))}
       </ol>
-      <p className="demo-note">
+      <p className={`demo-note${feedback?.preparing ? ' demo-setup' : ''}`}>
         {controlled
-          ? '形ができたら、自動で次のお手本へ。'
+          ? feedback.preparing
+            ? 'できたところはそのまま。この形から今の動きを再開しよう。'
+            : '形ができたら、自動で次のお手本へ。'
           : 'カメラを始めると、あなたの進み具合に合わせるよ。'}
       </p>
     </section>

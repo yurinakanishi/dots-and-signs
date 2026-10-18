@@ -449,10 +449,34 @@ button svg {
   min-width: 0;
   flex: 1;
 }
-.companion-message > span {
+.companion-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.companion-caption > span {
   font-size: 10px;
   letter-spacing: 1px;
-  color: #91a37b;
+  color: #647a51;
+}
+.restart-practice {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #6c7863;
+  background: transparent;
+  font-size: 10px;
+  padding: 6px 0 6px 6px;
+}
+.restart-practice:hover {
+  color: #334d26;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.demo-setup {
+  color: #546f3f;
 }
 .companion-message p {
   font-size: 13px;
@@ -1113,5 +1137,10 @@ button svg {
   }
   .is-practicing .demo-note {
     display: none;
+  }
+  .is-practicing .demo-note.demo-setup {
+    display: block;
+    grid-column: 1 / -1;
+    margin: 2px 0 0;
   }
 }

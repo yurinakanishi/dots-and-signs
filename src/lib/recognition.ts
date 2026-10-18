@@ -10,7 +10,6 @@ export const RECOGNITION = {
   trackingGraceMs: 1000,
   settleMs: 320,
   minFrames: 3,
-  deadlineMs: 30_000,
 } as const;
 
 type XY = { x: number; y: number };
@@ -52,15 +51,17 @@ export function waitingFeedback(sign: SignId = 'hello'): Feedback {
     requiredHands: sign === 'evening' ? 2 : 1,
     bodyVisible: false,
     trackingPaused: false,
+    preparing: false,
     demoFrame: 0,
   };
 }
 
-/** Each confirmed phase advances the visible guide; missing frames never earn progress. */
+/** Earned steps survive interruptions; motion evidence must be observed afresh. */
 export class SignRecognizer {
   private sign: SignId;
   private phase: Phase = 'intro';
-  private phaseSince = 0;
+  private completedSteps = 0;
+  private preparing = false;
   private holdSince: number | null = null;
   private holdFrames = 0;
   private holdProgress = 0;
@@ -82,7 +83,14 @@ export class SignRecognizer {
   reset(sign: SignId = this.sign) {
     this.sign = sign;
     this.phase = 'intro';
-    this.phaseSince = 0;
+    this.completedSteps = 0;
+    this.preparing = false;
+    this.complete = false;
+    this.bodyVisible = false;
+    this.visibleHands = [];
+    this.clearMotion();
+  }
+  private clearMotion() {
     this.clearHold();
     this.missingSince = null;
     this.lastTimestamp = null;
@@ -91,17 +99,10 @@ export class SignRecognizer {
     this.origin.clear();
     this.activeId = null;
     this.supportId = null;
-    this.complete = false;
-    this.bodyVisible = false;
-    this.visibleHands = [];
     this.tracker.reset();
   }
   private step() {
-    if (this.complete) return 2;
-    if (this.phase === 'intro') return 0;
-    if (this.phase === 'cross' || this.phase === 'place') return 1;
-    if (this.phase === 'greet' && this.sign === 'hello') return 1;
-    return 2;
+    return Math.min(this.completedSteps, 2);
   }
   private clearHold() {
     this.holdSince = null;
@@ -118,9 +119,14 @@ export class SignRecognizer {
     this.holdProgress = Math.min(0.75, Math.floor(((time - this.holdSince) / duration) * 4) / 4);
     return time - this.holdSince >= duration && this.holdFrames >= RECOGNITION.minFrames;
   }
-  private next(phase: Phase, time: number, hands: LocatedHand[]) {
+  private next(phase: Phase, hands: LocatedHand[]) {
     this.phase = phase;
-    this.phaseSince = time;
+    const checkpoint =
+      phase === 'cross' || phase === 'place' || (phase === 'greet' && this.sign === 'hello')
+        ? 1
+        : 2;
+    this.completedSteps = Math.max(this.completedSteps, checkpoint);
+    this.preparing = false;
     this.clearHold();
     this.origin = new Map(hands.map((h) => [h.id, h]));
   }
@@ -130,38 +136,62 @@ export class SignRecognizer {
       message,
       step,
       status,
-      completedSteps: this.complete ? 3 : step,
+      completedSteps: this.completedSteps,
       holdProgress: this.complete ? 1 : this.holdProgress,
       handCount: this.visibleHands.length,
       requiredHands: step === 0 && this.sign !== 'evening' ? 1 : 2,
       bodyVisible: this.bodyVisible,
       trackingPaused: false,
-      demoFrame:
-        this.sign === 'evening' && this.phase === 'bow'
+      preparing: this.preparing,
+      demoFrame: this.preparing
+        ? this.phase === 'intro'
+          ? 0
+          : this.sign === 'evening'
+            ? 2
+            : 1
+        : this.sign === 'evening' && this.phase === 'bow'
           ? 3
           : this.complete && this.sign === 'evening'
             ? 3
             : step,
     };
   }
-  private restart(message: string): Feedback {
-    const hands = this.visibleHands,
-      bodyVisible = this.bodyVisible;
-    this.reset();
-    this.visibleHands = hands;
-    this.bodyVisible = bodyVisible;
+  private recover(message: string): Feedback {
+    this.clearMotion();
+    if (this.complete) return this.success();
+    // Only the unfinished movement needs fresh evidence. Rebuilding its
+    // starting pose must not turn earlier green checks back into empty steps.
+    this.phase =
+      this.completedSteps === 0
+        ? 'intro'
+        : this.sign === 'hello'
+          ? 'greet'
+          : this.sign === 'thanks'
+            ? 'place'
+            : this.completedSteps === 1
+              ? 'intro'
+              : 'greet';
+    this.preparing =
+      this.completedSteps === 2 || (this.sign === 'evening' && this.completedSteps === 1);
     return this.reply(message, 'adjust');
   }
   private pause(message: string, time: number): Feedback {
     this.clearHold();
     this.missingSince ??= time;
-    if (time - this.missingSince >= RECOGNITION.trackingGraceMs)
-      return this.restart('手や顔がしばらく見えなかったので、ステップ1からもう一度。');
+    if (time - this.missingSince >= RECOGNITION.trackingGraceMs) return this.recover(message);
     return this.reply(message, 'adjust');
   }
   private success(): Feedback {
     this.complete = true;
+    this.completedSteps = 3;
+    this.preparing = false;
     return this.reply('3ステップできたね！ 手の動きを確認できたよ。', 'success');
+  }
+
+  pauseSession(): Feedback {
+    this.visibleHands = [];
+    this.bodyVisible = false;
+    return this.recover(`できたところはそのまま。ステップ${this.step() + 1}から再開できるよ。`);
   }
 
   pauseTracking(now: number): Feedback {
@@ -177,8 +207,14 @@ export class SignRecognizer {
       ![frame.timestamp, frame.width, frame.height, receivedAt].every(Number.isFinite) ||
       frame.width <= 0 ||
       frame.height <= 0
-    )
-      return this.restart('カメラを確認して、ステップ1からもう一度。');
+    ) {
+      this.visibleHands = [];
+      this.bodyVisible = false;
+      return {
+        ...this.recover('カメラを確認してね。できたところは残して待っているよ。'),
+        trackingPaused: true,
+      };
+    }
     if (!isFreshFrame(frame.timestamp, receivedAt)) return this.pauseTracking(receivedAt);
     this.visibleHands = this.tracker.update(frame);
     const body = bodyAnchor(frame);
@@ -189,7 +225,7 @@ export class SignRecognizer {
       (frame.timestamp <= this.lastTimestamp ||
         frame.timestamp - this.lastTimestamp >= RECOGNITION.maxFrameGapMs)
     )
-      return this.restart('映像が途切れたので、ステップ1からもう一度。');
+      return this.recover('映像が戻ったね。今のステップから続けよう。');
     this.lastTimestamp = frame.timestamp;
     if (!body)
       return this.pause(
@@ -203,7 +239,7 @@ export class SignRecognizer {
       (Math.hypot(body.cx - this.lastBody.cx, body.cy - this.lastBody.cy) / body.scale > 0.3 ||
         Math.abs(Math.log(body.scale / this.lastBody.scale)) > 0.25)
     )
-      return this.restart('体の位置を落ち着かせて、ステップ1から。');
+      return this.recover('体の位置を落ち着かせて、今のステップから続けよう。');
     this.lastBody = body;
 
     const canAddSecond =
@@ -239,20 +275,12 @@ export class SignRecognizer {
       };
       const previous = this.previous.get(h.id);
       if (previous && distance(previous, h.at) > 0.8)
-        return this.restart('ゆっくり動かして、ステップ1からもう一度。');
+        return this.recover('手の位置を確かめているよ。今のステップをゆっくりやってみよう。');
       hands.push(h);
     }
-    if (
-      this.sign === 'hello' &&
-      (this.phase === 'greet' || this.phase === 'bow') &&
-      !hands.some((h) => h.id === this.activeId)
-    )
-      return this.pause('最初に額へあてた手も映してね。', frame.timestamp);
     this.missingSince = null;
     this.previous = new Map(hands.map((h) => [h.id, h.at]));
     const time = frame.timestamp;
-    if (this.phase !== 'intro' && time - this.phaseSince > RECOGNITION.deadlineMs)
-      return this.restart('ひと息ついて、ステップ1からやってみよう。');
 
     if (this.sign === 'hello' && this.phase === 'intro') {
       const h = hands.find(
@@ -266,8 +294,7 @@ export class SignRecognizer {
           h.up > 0.35,
       );
       if (this.settle(!!h, time)) {
-        this.activeId = h!.id;
-        this.next('greet', time, hands);
+        this.next('greet', hands);
         return this.reply('ステップ1できた！ 次は、両手の人差し指を立てよう。');
       }
       return this.reply('2本の指を額の真ん中へ。その形で少し止めてね。');
@@ -288,14 +315,24 @@ export class SignRecognizer {
           Math.abs(a.at.x - b.at.x) > 0.65 &&
           (a.at.x - body.eyes.x) * (b.at.x - body.eyes.x) < 0;
         if (this.settle(separated, time)) {
-          this.next('cross', time, hands);
-          return this.reply('ステップ1できた！ 目の前で両手を交差させよう。');
+          const resumed = this.preparing;
+          this.next('cross', hands);
+          return this.reply(
+            resumed
+              ? '準備できたよ。このまま目の前で両手を交差させよう。'
+              : 'ステップ1できた！ 目の前で両手を交差させよう。',
+          );
         }
-        return this.reply('手のひらを前に向け、顔の左右にひらいて、少し止めてね。');
+        return this.reply(
+          this.preparing
+            ? 'ステップ2の準備：両手を顔の左右にひらいて、少し止めてね。'
+            : '手のひらを前に向け、顔の左右にひらいて、少し止めてね。',
+        );
       }
       const oa = this.origin.get(a.id),
         ob = this.origin.get(b.id);
-      if (!oa || !ob) return this.restart('手の追跡が変わったので、ステップ1からもう一度。');
+      if (!oa || !ob)
+        return this.recover('両手を顔の左右にひらき直そう。ステップ2から続けられるよ。');
       const crossed =
         faceLevel &&
         (oa.at.x - ob.at.x) * (a.at.x - b.at.x) < -0.02 &&
@@ -303,7 +340,7 @@ export class SignRecognizer {
         Math.abs(b.at.x - ob.at.x) > 0.25 &&
         Math.abs(a.at.x - b.at.x) < 0.65;
       if (this.settle(crossed, time, 180)) {
-        this.next('greet', time, hands);
+        this.next('greet', hands);
         return this.reply('ステップ2できた！ 両手の人差し指を立てて、おじぎさせよう。');
       }
       return this.reply('目の前で、左右の手が交差するまで動かしてね。');
@@ -312,10 +349,7 @@ export class SignRecognizer {
     if (this.phase === 'greet' || this.phase === 'bow') {
       if (hands.length < 2) {
         this.clearHold();
-        return this.reply(
-          'ステップ1はできたよ。もう片方の手も映して、人差し指を立てよう。',
-          'adjust',
-        );
+        return this.reply('もう片方の手も映して、両手の人差し指を立てよう。', 'adjust');
       }
       if (this.phase === 'greet') {
         const spread = Math.abs(hands[0].at.x - hands[1].at.x);
@@ -325,15 +359,26 @@ export class SignRecognizer {
           spread < 0.95 &&
           Math.abs(hands[0].at.y - hands[1].at.y) < 0.28;
         if (this.settle(upright, time)) {
-          this.next('bow', time, hands);
+          const resumed = this.preparing;
+          this.next('bow', hands);
           return this.reply(
-            this.sign === 'hello'
-              ? 'ステップ2できた！ 指どうしがおじぎするように、両方を曲げよう。'
-              : 'その形から、両方の人差し指を曲げて、おじぎさせよう。',
+            resumed
+              ? '準備できたよ。その形から両方の人差し指を曲げて、おじぎさせよう。'
+              : this.sign === 'hello'
+                ? 'ステップ2できた！ 指どうしがおじぎするように、両方を曲げよう。'
+                : 'その形から、両方の人差し指を曲げて、おじぎさせよう。',
           );
         }
-        return this.reply('胸の前で、両手の人差し指だけを立てて近づけよう。');
+        return this.reply(
+          this.preparing
+            ? 'ステップ3の準備：胸の前で、両手の人差し指を立て直そう。'
+            : '胸の前で、両手の人差し指だけを立てて近づけよう。',
+        );
       }
+      if (hands.some((h) => !this.origin.has(h.id)))
+        return this.recover('両手の人差し指を立て直そう。できたステップは残っているよ。');
+      if (hands.some((h) => distance(h.wrist, this.origin.get(h.id)!.wrist) >= 0.3))
+        return this.recover('今の位置で両手の人差し指を立て直そう。そこから、おじぎを続けよう。');
       const bowed = hands.every((h) => {
         const origin = this.origin.get(h.id);
         return origin && nearChest(h) && indexBowed(h) && distance(h.wrist, origin.wrist) < 0.3;
@@ -344,17 +389,12 @@ export class SignRecognizer {
 
     if (this.sign === 'thanks') {
       const support = hands.find(
-        (h) =>
-          open(h) &&
-          h.horizontal > 0.65 &&
-          h.normal.y > 0.45 &&
-          nearChest(h) &&
-          (this.supportId === null || h.id === this.supportId),
+        (h) => open(h) && h.horizontal > 0.65 && h.normal.y > 0.45 && nearChest(h),
       );
       if (this.phase === 'intro') {
         if (this.settle(!!support, time)) {
           this.supportId = support!.id;
-          this.next('place', time, hands);
+          this.next('place', hands);
           return this.reply('ステップ1できた！ もう片方の手を、小指側からのせよう。');
         }
         return this.reply('片手を胸の前に。手の甲を上にして、少し止めてね。');
@@ -376,21 +416,32 @@ export class SignRecognizer {
           distance(active.edge, support.at) < 0.3 &&
           active.at.y < support.at.y + 0.08;
         if (this.settle(touching, time)) {
+          const resumed = this.preparing;
           this.activeId = active!.id;
-          this.next('lift', time, hands);
-          return this.reply('ステップ2できた！ 下の手を保って、上の手をすっと上げよう。');
+          this.supportId = support!.id;
+          this.next('lift', hands);
+          return this.reply(
+            resumed
+              ? '準備できたよ。下の手を保って、上の手をすっと上げよう。'
+              : 'ステップ2できた！ 下の手を保って、上の手をすっと上げよう。',
+          );
         }
         return this.reply(
-          hands.length < 2
-            ? 'もう片方の手も映して、小指側から手の甲にのせよう。'
-            : '下の手の甲に、もう片方の小指側を直角にのせて、少し止めよう。',
+          this.preparing
+            ? 'ステップ3の準備：上の手を、もう一度小指側から下の手の甲にのせよう。'
+            : hands.length < 2
+              ? 'もう片方の手も映して、小指側から手の甲にのせよう。'
+              : '下の手の甲に、もう片方の小指側を直角にのせて、少し止めよう。',
         );
       }
       const moving = hands.find((h) => h.id === this.activeId);
       const base = hands.find((h) => h.id === this.supportId);
-      if (!moving || !base) return this.restart('手の追跡が変わったので、ステップ1からもう一度。');
+      if (!moving || !base || !this.origin.has(moving.id) || !this.origin.has(base.id))
+        return this.recover('手をのせる形を整え直そう。ステップ3から続けられるよ。');
       const initial = this.origin.get(moving.id)!,
         baseInitial = this.origin.get(base.id)!;
+      if (distance(base.at, baseInitial.at) >= 0.2 || Math.abs(moving.at.x - initial.at.x) >= 0.22)
+        return this.recover('今の位置で手をのせ直そう。そこから、上の手を上げてみよう。');
       const rise = initial.at.y - moving.at.y;
       const lifted =
         open(moving) &&

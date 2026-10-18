@@ -83,7 +83,12 @@ async (page) => {
     await page.getByRole('heading', { name: 'できたね！', exact: true }).waitFor({ timeout: 15000 })
     await page.getByRole('button', { name: 'カメラをとめる' }).click()
     assert(await page.evaluate(() => window.__stream.getTracks().every(t => t.readyState === 'ended')), 'stop releases camera')
-    await page.evaluate(() => window.__setSequence('thanks'))
+    assert(await page.getByRole('heading', { name: 'できたね！', exact: true }).isVisible(), 'stopping the camera preserves a completed lesson')
+    await page.getByRole('button', { name: 'もう一度', exact: true }).click()
+    await page.evaluate(async () => {
+      const { frame, makeHand } = await import('/tests/fixtures.ts')
+      window.__frames = [frame([makeHand('fist', 0, .25)])]; window.__cursor = 0
+    })
     await cameraButton.click()
     await page.getByRole('button', { name: 'カメラをとめる' }).waitFor()
     await page.evaluate(() => {

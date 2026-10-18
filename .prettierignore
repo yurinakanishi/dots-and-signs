@@ -12,3 +12,4 @@ scripts/verify-two-hands.cjs
 scripts/verify-progress.cjs
 scripts/verify-tracking-recovery.cjs
 scripts/verify-characters.cjs
+scripts/verify-checkpoints.cjs

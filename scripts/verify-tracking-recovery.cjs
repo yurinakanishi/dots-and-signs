@@ -86,6 +86,8 @@ async (page) => {
     await page.getByText('ステップ 3 / 3', { exact: true }).waitFor()
     assert(await page.evaluate(() => window.__maxInFlight === 1), 'duplicate results never create concurrent captures')
     await stop()
+    assert(await page.locator('.progress-done').count() === 2, 'camera stop preserves the two completed checkpoints')
+    await page.getByRole('button', { name: '最初からやり直す', exact: true }).click()
     await page.evaluate(() => { window.__mode = 'wrong-id'; window.__setPose('forehead') })
     await start()
     await page.getByText('認識を待っています', { exact: true }).waitFor()

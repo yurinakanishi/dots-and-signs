@@ -27,6 +27,8 @@ export type Feedback = {
   requiredHands: number;
   bodyVisible: boolean;
   trackingPaused: boolean;
+  /** Re-establish the current movement's starting pose; earned steps stay checked. */
+  preparing: boolean;
   demoFrame: number;
 };
 export type WorkerResponse =

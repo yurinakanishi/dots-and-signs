@@ -14,8 +14,8 @@ export function PracticeProgress({
   return (
     <ol className="practice-progress" aria-label="あなたの3ステップの進み具合">
       {lesson.shortSteps.map((title, i) => {
-        const done = active && i < feedback.completedSteps;
-        const current = active && !done && i === feedback.step;
+        const done = i < feedback.completedSteps;
+        const current = (active || feedback.completedSteps > 0) && !done && i === feedback.step;
         return (
           <li
             key={title}
@@ -28,7 +28,15 @@ export function PracticeProgress({
             <span>
               <strong>{title}</strong>
               <small>
-                {done ? 'できた' : current ? 'いまここ' : active ? 'つぎ' : `ステップ ${i + 1}`}
+                {done
+                  ? 'できた'
+                  : current
+                    ? active
+                      ? 'いまここ'
+                      : 'ここから再開'
+                    : active || feedback.completedSteps > 0
+                      ? 'つぎ'
+                      : `ステップ ${i + 1}`}
               </small>
             </span>
           </li>

@@ -102,7 +102,7 @@ describe('ordered greeting practice', () => {
   });
 });
 
-describe('uncertainty resets rather than awarding a pass', () => {
+describe('uncertainty pauses recognition rather than awarding a pass', () => {
   it('does not advance from results that arrive 600 ms after capture', () => {
     const recognizer = new SignRecognizer('hello');
     const results = motionFrames('hello').map((f) => recognizer.update(f, f.timestamp + 600));
@@ -159,11 +159,19 @@ describe('uncertainty resets rather than awarding a pass', () => {
     expect(results[7].status).toBe('adjust');
     expect(results.at(-1)?.status).toBe('success');
   });
-  it('resets on a long gap or non-increasing timestamp', () => {
+  it('clears unfinished holds on a gap or duplicate timestamp, then accepts fresh motion', () => {
     for (const delta of [-80, 1000]) {
       const frames = motionFrames('thanks');
       frames.slice(6).forEach((f) => (f.timestamp += delta));
-      expect(run('thanks', frames).at(-1)?.status).not.toBe('success');
+      const results = run('thanks', frames);
+      expect(results[6]).toMatchObject({
+        completedSteps: 1,
+        step: 1,
+        holdProgress: 0,
+        status: 'adjust',
+      });
+      expect(results[7].completedSteps).toBe(1);
+      expect(results.at(-1)?.status).toBe('success');
     }
   });
   it('does not retain earlier lesson state', () => {
@@ -180,12 +188,12 @@ describe('uncertainty resets rather than awarding a pass', () => {
   it('does not allow a single matching frame to advance', () => {
     expect(run('hello', [frame([makeHand('two', 0, -0.4)])])[0].step).toBe(0);
   });
-  it('expires an unfinished movement', () => {
+  it('allows a long attempt but never skips the unconfirmed placement', () => {
     const frames = motionFrames('thanks').slice(0, 6);
     for (let i = 6; i < 410; i++)
       frames.push(frame([makeHand('fist', 0.08, 0.18), thanks()[1]], i * 80));
     for (let i = 410; i < 416; i++) frames.push(frame(thanks(true), i * 80));
-    expect(run('thanks', frames).at(-1)?.status).not.toBe('success');
+    expect(run('thanks', frames).at(-1)).toMatchObject({ completedSteps: 1, step: 1 });
   });
 });
 

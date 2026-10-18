@@ -44,6 +44,7 @@ export default function App() {
       old.handCount === next.handCount &&
       old.bodyVisible === next.bodyVisible &&
       old.trackingPaused === next.trackingPaused &&
+      old.preparing === next.preparing &&
       old.demoFrame === next.demoFrame
         ? old
         : next,
@@ -70,12 +71,26 @@ export default function App() {
     },
     [showFeedback],
   );
-  const camera = useHandCamera(handleFrame, reset, handleTrackingPause);
+  const pausePractice = useCallback(() => {
+    setFeedback(recognizer.current.pauseSession());
+    const canvas = canvasRef.current;
+    canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
+  }, []);
+  const camera = useHandCamera(handleFrame, pausePractice, handleTrackingPause);
   const active = camera.state === 'active';
   const busy = camera.state === 'loading' || camera.state === 'requesting';
-  const success = active && feedback.status === 'success';
-  const achievement = active ? feedback.completedSteps : 0;
+  const success = feedback.status === 'success';
+  const achievement = feedback.completedSteps;
+  const canResume = achievement > 0 && !success;
+  const hasPractice = active || achievement > 0;
+  const earnedMessage =
+    achievement === 1
+      ? 'ステップ1はできたよ'
+      : achievement === 2
+        ? 'ステップ1・2はできたよ'
+        : 'dots';
   function choose(id: SignId) {
+    if (id === current.current) return;
     current.current = id;
     setSelected(id);
     reset();
@@ -84,7 +99,9 @@ export default function App() {
     ? lesson.cheer
     : active
       ? feedback.message
-      : 'ゆっくりで大丈夫。いっしょにやってみよう。';
+      : canResume
+        ? `ステップ${feedback.step + 1}から続けられるよ。カメラをつけて、今のお手本をまねしてね。`
+        : 'ゆっくりで大丈夫。いっしょにやってみよう。';
 
   return (
     <div className="app">
@@ -129,7 +146,7 @@ export default function App() {
           })}
         </nav>
         <section
-          className={`practice-card${active ? ' is-practicing' : ''}`}
+          className={`practice-card${hasPractice ? ' is-practicing' : ''}`}
           aria-labelledby="lesson-title"
         >
           <div className="lesson-heading">
@@ -140,7 +157,11 @@ export default function App() {
             <PracticeProgress lesson={lesson} feedback={feedback} active={active} />
           </div>
           <div className="practice-grid">
-            <SignDemo key={selected} lesson={lesson} feedback={active ? feedback : undefined} />
+            <SignDemo
+              key={selected}
+              lesson={lesson}
+              feedback={hasPractice ? feedback : undefined}
+            />
             <section className="camera-panel" aria-label="カメラで練習">
               <div className="panel-label">
                 <span>
@@ -148,7 +169,9 @@ export default function App() {
                     ? '3ステップ完了！'
                     : active
                       ? `ステップ ${feedback.step + 1} / 3`
-                      : 'やってみよう'}
+                      : canResume
+                        ? `ステップ${feedback.step + 1}から再開`
+                        : 'やってみよう'}
                 </span>
                 <span className={active ? 'camera-status live' : 'camera-status'}>
                   <i />
@@ -198,7 +221,7 @@ export default function App() {
                   aria-label="あなたのカメラ映像（鏡表示）"
                 />
                 <canvas ref={canvasRef} className="hand-overlay mirrored" aria-hidden="true" />
-                {!active && (
+                {!active && !success && (
                   <div className="camera-empty">
                     <svg className="framing-guide" viewBox="0 0 200 150" aria-hidden="true">
                       <path
@@ -229,7 +252,9 @@ export default function App() {
                           ? 'カメラを許可してね'
                           : camera.state === 'error'
                             ? 'カメラを確認しよう'
-                            : '顔と両手を映してね'}
+                            : canResume
+                              ? '続きから練習しよう'
+                              : '顔と両手を映してね'}
                     </h3>
                     {camera.state === 'error' ? (
                       <p className="camera-error" role="alert">
@@ -239,7 +264,9 @@ export default function App() {
                       <p>
                         {busy
                           ? 'はじめての準備には少し時間がかかります。'
-                          : '少し離れて、胸のあたりまで。'}
+                          : canResume
+                            ? `${earnedMessage}。あせらず、続けよう。`
+                            : '少し離れて、胸のあたりまで。'}
                       </p>
                     )}
                     <button
@@ -250,9 +277,11 @@ export default function App() {
                       {busy ? <LoaderCircle className="spin" size={18} /> : <Camera size={18} />}
                       {busy
                         ? '準備中'
-                        : camera.state === 'error'
-                          ? 'もう一度ためす'
-                          : 'カメラで練習する'}
+                        : canResume
+                          ? `ステップ${feedback.step + 1}から再開する`
+                          : camera.state === 'error'
+                            ? 'もう一度ためす'
+                            : 'カメラで練習する'}
                     </button>
                     {busy && (
                       <button className="text-button" onClick={camera.stop}>
@@ -293,7 +322,19 @@ export default function App() {
               <div className="companion">
                 <Dot color="green" achievement={achievement} />
                 <div className="companion-message">
-                  <span>dots</span>
+                  <div className="companion-caption">
+                    <span>{earnedMessage}</span>
+                    {canResume && (
+                      <button
+                        className="restart-practice"
+                        onClick={reset}
+                        aria-label="最初からやり直す"
+                      >
+                        <RotateCcw size={12} />
+                        最初から
+                      </button>
+                    )}
+                  </div>
                   <p role="status" aria-live="polite" aria-atomic="true">
                     {cheer}
                   </p>

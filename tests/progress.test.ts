@@ -26,15 +26,16 @@ describe('visible progress follows confirmed movements', () => {
     }
     expect(recognizer.update(frame(greeting(true), 1640)).status).toBe('success');
   });
-  it('clears progress after prolonged stalled recognition, without inventing hands', () => {
+  it('keeps checkpoints after prolonged stalled recognition, without inventing hands', () => {
     const recognizer = new SignRecognizer('hello');
     motionFrames('hello')
       .slice(0, 13)
       .forEach((f) => recognizer.update(f));
     recognizer.pauseTracking(1200);
     expect(recognizer.pauseTracking(2300)).toMatchObject({
-      step: 0,
-      completedSteps: 0,
+      step: 2,
+      completedSteps: 2,
+      preparing: true,
       trackingPaused: true,
       handCount: 0,
     });
@@ -89,14 +90,14 @@ describe('visible progress follows confirmed movements', () => {
       holdProgress: 0,
     });
   });
-  it('clears completed steps after sustained tracking loss', () => {
+  it('keeps completed steps after sustained tracking loss', () => {
     const recognizer = new SignRecognizer('hello');
     motionFrames('hello')
       .slice(0, 13)
       .forEach((f) => recognizer.update(f));
     let result;
     for (let i = 13; i < 30; i++) result = recognizer.update(frame([], i * 80));
-    expect(result).toMatchObject({ step: 0, completedSteps: 0, handCount: 0 });
+    expect(result).toMatchObject({ step: 2, completedSteps: 2, handCount: 0, preparing: true });
   });
 });
 
