@@ -11,11 +11,18 @@ export function LessonInput({
   coach: ReturnType<typeof useLiveCoach>;
 }) {
   return (
-    <section className="lesson-input" aria-label="練習することばの入力">
+    <section
+      className={`lesson-input${lessons.length === 1 ? ' single-lesson' : ''}`}
+      aria-label="練習することばの入力"
+    >
       <div className="input-mode-heading">
         <h2>どうやって選ぶ？</h2>
         <div className="input-mode-toggle" role="group" aria-label="入力モード">
-          <button type="button" aria-pressed="true" aria-controls="lesson-input-content">
+          <button
+            type="button"
+            aria-pressed="true"
+            aria-controls={lessons.length > 1 ? 'lesson-input-content' : undefined}
+          >
             <LayoutGrid size={16} />
             選択モード
           </button>

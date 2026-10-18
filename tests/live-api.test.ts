@@ -68,6 +68,57 @@ function handler(options: Partial<Parameters<typeof createApiHandler>[0]> = {}) 
     upstream,
   };
 }
+describe('local practice hint route', () => {
+  const context = {
+    lessonId: 'hello',
+    step: 0,
+    handCount: 0,
+    bodyVisible: true,
+    holdProgress: 0,
+    preparing: false,
+    stalledSeconds: 12,
+    previousHints: [],
+  };
+  it('serves non-voice hints and prevents overlapping or rapid paid requests', async () => {
+    let time = 0;
+    const fetch = vi.fn<typeof globalThis.fetch>(async () =>
+      Response.json({ answers: [{ name: 'practice_hint', type: 'choice', choice: 'show_hands' }] }),
+    );
+    const reserveHint = vi.fn(async () => 'allowed' as const);
+    const h = handler({ fetch, reserveHint, now: () => time });
+    const call = async () => {
+      const r = io(context, {}, '/api/practice/hint');
+      await h.run(r.req, r.response);
+      return r.res;
+    };
+    const results = await Promise.all([call(), call()]);
+    expect(results.map((r) => r.status).sort()).toEqual([200, 429]);
+    expect(JSON.parse(results.find((r) => r.status === 200)!.body)).toEqual({
+      hint: 'show_hands',
+      source: 'decisions',
+    });
+    expect((await call()).status).toBe(429);
+    expect(reserveHint).toHaveBeenCalledTimes(1);
+    time = 20_000;
+    expect((await call()).status).toBe(200);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+  it('rejects oversized summaries, foreign origins and missing quota storage', async () => {
+    const fetch = vi.fn();
+    const h = handler({ fetch });
+    for (const [body, headers, status] of [
+      ['x'.repeat(2049), {}, 413],
+      [context, { origin: 'https://bad.example' }, 403],
+      [context, {}, 503],
+    ] as const) {
+      const r = io(body, headers, '/api/practice/hint');
+      await h.run(r.req, r.response);
+      expect(r.res.status).toBe(status);
+    }
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
 describe('local Live API boundary', () => {
   it('uses the server key and pinned models; forwards only ID and SDP', async () => {
     const h = handler(),

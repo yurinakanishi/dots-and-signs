@@ -5,7 +5,8 @@ import {
   MAX_SESSION_SECONDS,
   DAILY_SESSION_LIMIT,
 } from './session-config';
-import { reserveHostedSession, type UsageEnv } from './hosted-usage';
+import { reserveHostedHint, reserveHostedSession, type UsageEnv } from './hosted-usage';
+import { choosePracticeHint, HINT_BODY_LIMIT } from './practice-hints';
 
 export type HostedEnv = UsageEnv & { OPENAI_API_KEY?: string };
 const SITE_ORIGIN = 'https://practice-signs-with-dots.yurinakanishi33.chatgpt.site';
@@ -72,7 +73,9 @@ export async function handleHostedApi(
       dailySessionLimit: DAILY_SESSION_LIMIT,
     });
   }
-  if (url.pathname !== '/api/live/session') return json(404, { error: 'APIが見つかりません。' });
+  const isHint = url.pathname === '/api/practice/hint';
+  if (url.pathname !== '/api/live/session' && !isHint)
+    return json(404, { error: 'APIが見つかりません。' });
   if (req.method !== 'POST')
     return json(405, { error: 'POSTを使用してください。' }, { Allow: 'POST' });
   if (req.headers.get('origin') !== url.origin) {
@@ -81,16 +84,26 @@ export async function handleHostedApi(
   if (req.headers.get('content-type')?.split(';')[0].trim() !== 'application/json') {
     return json(415, { error: 'JSONが必要です。' });
   }
-  if (Number(req.headers.get('content-length')) > BODY_LIMIT) {
+  const bodyLimit = isHint ? HINT_BODY_LIMIT : BODY_LIMIT;
+  if (Number(req.headers.get('content-length')) > bodyLimit) {
     return json(413, { error: '接続データが大きすぎます。' });
   }
   let body;
   try {
-    body = await readJson(req.body, BODY_LIMIT);
+    body = await readJson(req.body, bodyLimit);
   } catch (error) {
     return json(error instanceof Error && error.message === 'too_large' ? 413 : 400, {
       error: '接続データを読み取れません。',
     });
+  }
+  if (isHint) {
+    const result = await choosePracticeHint(body, {
+      apiKey: env.OPENAI_API_KEY,
+      fetch: dependencies.fetch,
+      signal: req.signal,
+      reserve: () => reserveHostedHint(env, (dependencies.now ?? Date.now)()),
+    });
+    return json(result.status, result.body);
   }
   const sdp = body?.sdp;
   if (

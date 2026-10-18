@@ -9,12 +9,15 @@
 ## 構成
 
 - `app/page.tsx` が既存のReact画面を表示する。画像インポートの `?url` はVite/Vinext共通でURL文字列を取得するため。
-- `/api/live/status` と `/api/live/session` は `server/hosted-api.ts` が処理する。
+- `/api/live/status`・`/api/live/session`・`/api/practice/hint` は `server/hosted-api.ts` が処理する。
 - APIキーはSites秘密設定の `OPENAI_API_KEY`。必要権限はLive / Decisions / Responses Write。ブラウザに返すのはセッションIDとSDPのみ。
+- 音声なしの練習ヒントはDecisions Write権限を使い、ヒントIDだけを返す。練習状態の要約を送信し、映像・音声・座標は送信しない。既存Siteへの反映には新しいビルドと秘密設定が必要。
 - `DB` はSites管理のD1。`drizzle/` のスキーマを公開時に適用する。音声、字幕、カメラ映像、ユーザーIDは保存しない。
 - 本人限定アクセスはSitesが処理する。公開範囲を広げる場合は、この共有APIと上限の認可設計も見直すこと。
 
 ## 利用上限
+
+練習ヒントは最短20秒間隔、全利用者・全Worker共通で1日60回まで。既存の `live_usage` テーブルに `hint:YYYY-MM-DD` の別キーで計上し、音声枠を消費しない。追加スキーマ移行は不要。クライアント側も1回のカメラ開始／やり直しにつき6回までに制限する。
 
 通常画面では1回60秒で切断する。サーバーでは全利用者・全Worker共通で1日10回、開始間隔90秒をD1の条件付き書き込みで制限する。失敗・キャンセルも1回として残し、自動再接続しない。日付はUTC（日本時間9時更新）。D1が読めない・書けないときは有料APIを呼ばない。
 

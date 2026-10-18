@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { extname, resolve, sep } from 'node:path';
 import { createApiHandler } from './api.ts';
 import { createDailyLimit } from './usage-limit.ts';
+import { HINT_DAILY_LIMIT } from '../src/lib/practice-hints.ts';
 
 const port = Number(process.env.PORT || 5173);
 if (!Number.isInteger(port) || port < 1024 || port > 65535)
@@ -15,6 +16,11 @@ const api = createApiHandler({
   port,
   apiKey: process.env.OPENAI_API_KEY,
   reserveSession: createDailyLimit(resolve(root, '.local/live-usage.json')),
+  reserveHint: createDailyLimit(
+    resolve(root, '.local/hint-usage.json'),
+    Date.now,
+    HINT_DAILY_LIMIT,
+  ),
 });
 const types: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',

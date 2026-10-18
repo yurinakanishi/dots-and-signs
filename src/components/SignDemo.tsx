@@ -34,7 +34,12 @@ export function SignDemo({ lesson, feedback }: { lesson: Lesson; feedback?: Feed
   }, [lesson]);
 
   return (
-    <section className="demo-panel" aria-label={lesson.label + 'のお手本'}>
+    <section
+      className="demo-panel"
+      id="lesson-demo"
+      tabIndex={-1}
+      aria-label={lesson.label + 'のお手本'}
+    >
       <div className="panel-label">
         <span>画像のお手本</span>
         {controlled ? (

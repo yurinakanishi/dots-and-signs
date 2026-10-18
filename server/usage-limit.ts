@@ -4,7 +4,7 @@ import { DAILY_SESSION_LIMIT } from './session-config.ts';
 
 // Reserve before contacting the paid API; failed/cancelled attempts also count.
 // The exclusive lock prevents two local servers from spending the same allowance.
-export function createDailyLimit(path: string, now = Date.now) {
+export function createDailyLimit(path: string, now = Date.now, limit = DAILY_SESSION_LIMIT) {
   return async (): Promise<'allowed' | 'limit' | 'unavailable'> => {
     let lock;
     try {
@@ -31,7 +31,7 @@ export function createDailyLimit(path: string, now = Date.now) {
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return 'unavailable';
       }
-      if (used >= DAILY_SESSION_LIMIT) return 'limit';
+      if (used >= limit) return 'limit';
       await writeFile(path + '.tmp', JSON.stringify({ day, used: used + 1 }) + '\n', {
         mode: 0o600,
       });

@@ -1,4 +1,30 @@
 import { DAILY_SESSION_LIMIT } from './session-config';
+import { HINT_DAILY_LIMIT, HINT_INTERVAL_MS } from '../src/lib/practice-hints';
+
+// Separate namespace in the existing counter table; voice usage is unchanged.
+export async function reserveHostedHint(env: UsageEnv, now = Date.now()) {
+  try {
+    if (!env.DB) return 'unavailable';
+    const day = `hint:${new Date(now).toISOString().slice(0, 10)}`;
+    const result = await env.DB.prepare(
+      `
+      INSERT INTO live_usage (day, used, last_started_at) VALUES (?1, 1, ?2)
+      ON CONFLICT(day) DO UPDATE SET used = live_usage.used + 1, last_started_at = ?2
+      WHERE live_usage.used < ?3 AND ?2 - live_usage.last_started_at >= ?4
+      RETURNING used
+    `,
+    )
+      .bind(day, now, HINT_DAILY_LIMIT, HINT_INTERVAL_MS)
+      .first<{ used: number }>();
+    if (result) return 'allowed';
+    const current = await env.DB.prepare('SELECT used FROM live_usage WHERE day = ?1')
+      .bind(day)
+      .first<{ used: number }>();
+    return (current?.used ?? 0) >= HINT_DAILY_LIMIT ? 'limit' : 'rate';
+  } catch {
+    return 'unavailable';
+  }
+}
 
 export type UsageEnv = {
   DB?: Pick<Env['DB'], 'prepare'>;

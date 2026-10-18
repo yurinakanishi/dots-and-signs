@@ -1,4 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { choosePracticeHint, HINT_BODY_LIMIT } from './practice-hints.ts';
+import { HINT_INTERVAL_MS } from '../src/lib/practice-hints.ts';
 import {
   createSessionConfig,
   LIVE_MODEL,
@@ -13,6 +15,7 @@ type Options = {
   fetch?: typeof fetch;
   now?: () => number;
   reserveSession: () => Promise<'allowed' | 'limit' | 'unavailable'>;
+  reserveHint?: () => Promise<'allowed' | 'limit' | 'unavailable'>;
 };
 const BODY_LIMIT = 64 * 1024;
 
@@ -31,6 +34,8 @@ export function createApiHandler(options: Options) {
   const origins = new Set([`http://127.0.0.1:${options.port}`, `http://localhost:${options.port}`]);
   let attempts: number[] = [];
   let inFlight = false;
+  let hintInFlight = false;
+  let lastHintAt = -Infinity;
 
   return async (req: IncomingMessage, res: ServerResponse): Promise<boolean> => {
     if (!req.url?.startsWith('/api/')) return false;
@@ -48,7 +53,8 @@ export function createApiHandler(options: Options) {
       });
       return true;
     }
-    if (req.url !== '/api/live/session') {
+    const isHint = req.url === '/api/practice/hint';
+    if (req.url !== '/api/live/session' && !isHint) {
       json(res, 404, { error: 'APIが見つかりません。' });
       return true;
     }
@@ -68,7 +74,8 @@ export function createApiHandler(options: Options) {
       json(res, 415, { error: 'JSONが必要です。' });
       return true;
     }
-    if (Number(req.headers['content-length']) > BODY_LIMIT) {
+    const bodyLimit = isHint ? HINT_BODY_LIMIT : BODY_LIMIT;
+    if (Number(req.headers['content-length']) > bodyLimit) {
       json(res, 413, { error: '接続データが大きすぎます。' });
       return true;
     }
@@ -78,7 +85,7 @@ export function createApiHandler(options: Options) {
       let size = 0;
       for await (const chunk of req) {
         size += chunk.length;
-        if (size > BODY_LIMIT) {
+        if (size > bodyLimit) {
           json(res, 413, { error: '接続データが大きすぎます。' });
           return true;
         }
@@ -87,6 +94,34 @@ export function createApiHandler(options: Options) {
       body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
     } catch {
       if (!res.destroyed) json(res, 400, { error: '接続データを読み取れません。' });
+      return true;
+    }
+    if (isHint) {
+      const abort = new AbortController();
+      const onClose = () => {
+        if (!res.writableEnded) abort.abort();
+      };
+      res.on('close', onClose);
+      let reserved = false;
+      try {
+        const result = await choosePracticeHint(body, {
+          apiKey: options.apiKey,
+          fetch: request,
+          signal: abort.signal,
+          reserve: async () => {
+            if (hintInFlight || now() - lastHintAt < HINT_INTERVAL_MS) return 'rate';
+            if (!options.reserveHint) return 'unavailable';
+            hintInFlight = true;
+            reserved = true;
+            lastHintAt = now();
+            return options.reserveHint();
+          },
+        });
+        if (!res.destroyed) json(res, result.status, result.body);
+      } finally {
+        res.off('close', onClose);
+        if (reserved) hintInFlight = false;
+      }
       return true;
     }
     const sdp = body && typeof body === 'object' && 'sdp' in body ? body.sdp : null;

@@ -6,7 +6,7 @@
 
 この版は **「こんにちは」だけを練習できる版** です。音声入力モードは **Coming Soon** と表示し、操作UIを非公開にしています。音声の内部処理・サーバー・利用回数制限は再開用に残しています。公開手順・検証状況は [docs/SITES.md](docs/SITES.md)、[引き継ぎ仕様](SPEC.md)・[音声の構成と検証](docs/LIVE.md)も参照してください。
 
-ローカル版はサインイン不要です。ChatGPTサインインの連携やログイン用トークンの保存は実装していません。音声にはサーバー側のOpenAI APIキーを使います。
+ローカル版はサインイン不要です。ChatGPTサインインの連携やログイン用トークンの保存は実装していません。練習中のヒント選択と音声にはサーバー側のOpenAI APIキーを使います。
 
 ## 使い方
 
@@ -26,6 +26,21 @@
 
 ## 技術構成
 
+### 練習中のヒント選択（Decisions API）
+
+音声を使わずカメラで練習している間も、約12秒進行がなければ `/api/practice/hint` を呼びます。サーバーから `POST https://api.openai.com/v1/decisions`（`gpt-6-luna`）へ問い合わせ、現在の検出状況に合う候補から次のヒントを選びます。
+
+- 手を映す／顔や肩を映す／今の手順を確認する／お手本を見直す／形を保つ。加えて「少し見守る」を選ぶと、今の案内を維持します。
+- 入力は教材ID、現在の段階、手の数、体の検出有無、形を保つ進行、準備中かどうか、停滞秒数、直近3件のヒントID。映像・骨格座標・音声・自由文は送りません。
+- サーバーが選択肢と教材の説明を定義します。返ったIDに対応する既存教材に沿った文章をdotsの吹き出しに表示し、「お手本を見直す」では現在のお手本へのリンクを出します。
+- ステップの進行、やり直し、カメラ停止、タブを離れた場合は通信をキャンセルし、古い応答を破棄します。現在の検出状況と合わなくなったヒントも消します。成功判定は従来の認識処理が担当します。
+- 最短20秒間隔、カメラ開始またはやり直しから最大6回、サーバー全体で1日60回まで。音声の10回枠とは別です。API失敗・未設定・上限到達時も既存の案内で練習を続けられます。
+- ローカルは `.local/hint-usage.json`、Sitesは既存の `live_usage` テーブルの `hint:YYYY-MM-DD` キーで回数だけを保存します。追加のDB移行は不要です。日次枠は毎日9時（日本時間）に更新されます。
+
+既存の `OPENAI_API_KEY`（Decisions Write権限）を使います。実API検証は `node --env-file-if-exists=.env scripts/verify-practice-hints.ts`（5回分を日次枠に計上）。Sitesで使うには同じ名前のサーバー側秘密設定が必要です。
+
+### 使用技術
+
 2026-10-18時点の実装と `package-lock.json` に基づきます。
 
 構成の中心は **React + TypeScript + MediaPipe + 独自の手順判定** です。MediaPipeの学習済みモデルが手や体の特徴点を推定し、その座標を独自のプログラムで調べて、選択中の教材の条件を満たしたか判断します。
@@ -35,7 +50,8 @@
 | 画面           | React、TypeScript                  | 教材選択、進行表示、お手本、カメラ、応援メッセージ |
 | カメラ入力     | ブラウザ標準のMediaDevices API     | PCカメラから映像を取得                             |
 | 音声の相談     | GPT-Live、WebRTC、native Decisions | 日本語の対話・字幕と、確認前の教材候補選択         |
-| ローカルAPI    | Node.js標準HTTPサーバー            | APIキーを保持し、音声セッションを作成              |
+| 練習のヒント   | Decisions API（gpt-6-luna）        | 停滞時の状態と履歴から次の案内を選択               |
+| ローカルAPI    | Node.js標準HTTPサーバー            | APIキーを保持し、ヒント選択・音声セッションを処理  |
 | 手・体の検出   | MediaPipe Tasks Vision             | 手の21点と体の33点を推定                           |
 | 推論の実行     | Web Worker、WebAssembly            | 画面処理と別のスレッドでモデルを実行               |
 | 手話の練習判定 | 独自のTypeScriptコード             | 指の形、手の向き・位置、動作の順序を確認           |
@@ -44,7 +60,7 @@
 | ビルド         | Vite、TypeScript                   | 配布用の静的ファイルを生成                         |
 | 検証           | Vitest、Playwright、GitHub Actions | 判定ロジック、ブラウザ操作、ビルドを確認           |
 | ローカル配信   | Node.js + Vite / `dist-local/`     | 画面とAPIを同一Originで提供                        |
-| Sites配信      | Vinext + Workers + D1             | 音声APIと永続的な利用回数制限                      |
+| Sites配信      | Vinext + Workers + D1              | 音声APIと永続的な利用回数制限                      |
 
 ## 使用ライブラリとバージョン
 
@@ -151,9 +167,9 @@ flowchart TD
 
 `recognition.ts` の `SignRecognizer` が、選択中の教材の内部状態を管理します。これは「いま確認している動き」を切り替える **状態機械（ステートマシン）** です。
 
-| 教材       | ステップ1                      | ステップ2                                  | ステップ3                        |
-| ---------- | ------------------------------ | ------------------------------------------ | -------------------------------- |
-| こんにちは | 人差し指と中指を額付近へ       | 胸の前で両手の人差し指を立てる             | 両方の人差し指を曲げる           |
+| 教材       | ステップ1                | ステップ2                      | ステップ3              |
+| ---------- | ------------------------ | ------------------------------ | ---------------------- |
+| こんにちは | 人差し指と中指を額付近へ | 胸の前で両手の人差し指を立てる | 両方の人差し指を曲げる |
 
 通常の形は **320ms以上かつ3フレーム以上** 保つと確定します。交差の確認は180ms、最後の動作は240msで、いずれも3フレーム以上が必要です。動画の最後の形だけを見せても、必要な始点や順序を省略して完了にはしません。
 
@@ -212,17 +228,17 @@ Reactの `useState`、`useRef`、`useEffect`、`useCallback` を使って画面�
 
 ## データ処理・バックエンド・配信
 
-| 項目                     | 現在の実装                                                      |
-| ------------------------ | --------------------------------------------------------------- |
-| カメラ画像・手や体の座標 | ブラウザ内で処理。アプリからサーバーへ保存・送信する処理はなし  |
-| 学習進行                 | ページ内のメモリで保持。ページを閉じた後の永続保存はなし        |
-| データベース             | 未使用                                                          |
-| アプリ独自のAPIサーバー  | `server/`。音声セッション作成と設定有無の照会                   |
-| ローカルアクセス制御     | loopback bind、Host/Origin検査、64KiB制限、1分5回の作成制限     |
-| OpenAI API               | `gpt-live-1` + `gpt-6-luna`。音声利用時のみサーバー側キーが必要 |
-| マイク音声・会話         | 開始操作後にOpenAIへ音声を送信。字幕はページのメモリ内          |
-| Node.js                  | 22.18以上。開発と本番形式のローカルサーバーにも使用             |
-| Sites                   | Workerが音声セッションを作成。D1は日付・回数・最終開始時刻だけ保存 |
+| 項目                     | 現在の実装                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------------ |
+| カメラ画像・手や体の座標 | ブラウザ内で処理。アプリからサーバーへ保存・送信する処理はなし                       |
+| 学習進行                 | ページ内で保持。停滞時に進行・検出状態の要約をOpenAIへ送信。アプリで永続保存はしない |
+| データベース             | SitesのD1にAPI利用回数だけ保存                                                       |
+| アプリ独自のAPIサーバー  | `server/`。ヒント選択、音声セッション作成と設定有無の照会                            |
+| ローカルアクセス制御     | loopback bind、Host/Origin検査、64KiB制限、1分5回の作成制限                          |
+| OpenAI API               | ヒントは `gpt-6-luna`、音声は `gpt-live-1` + `gpt-6-luna`。サーバー側キーを使用      |
+| マイク音声・会話         | 開始操作後にOpenAIへ音声を送信。字幕はページのメモリ内                               |
+| Node.js                  | 22.18以上。開発と本番形式のローカルサーバーにも使用                                  |
+| Sites                    | Workerがヒントと音声APIを処理。D1は用途別の日付・回数・最終開始時刻だけ保存          |
 
 モデル・WASM・画像・フォントなどの配信には通常のネットワークアクセスがあります。カメラ画像を使った推論処理は端末内で実行します。
 
@@ -292,41 +308,41 @@ npx --yes --package @playwright/cli playwright-cli -s=greetings close
 
 以下のパスはリポジトリのルートを基準にしています。
 
-| ファイル                                              | 内容                                                  |
-| ----------------------------------------------------- | ----------------------------------------------------- |
-| `package.json` / `package-lock.json`                  | 依存ライブラリ・実行コマンド・確定バージョン          |
-| `src/App.tsx`                                         | 画面全体、教材の選択、進行とカメラの接続              |
-| `src/hooks/useLiveCoach.ts` / `src/lib/live/coach.ts` | 音声接続、字幕、委任照合、確認と終了処理              |
-| `src/components/VoiceCoach.tsx`                       | 音声開始・終了、字幕、教材確認の画面                  |
-| `server/index.ts` / `server/api.ts`                   | 同一Originのローカル配信と音声API境界                 |
-| `server/session-config.ts`                            | モデル・Decisionsの選択肢・音声コーチの指示           |
-| `src/hooks/useHandCamera.ts`                          | カメラの取得・停止、Worker、フレームの更新監視        |
-| `public/vision-worker.js`                             | 手・体のモデル初期化と推論                            |
-| `src/lib/geometry.ts`                                 | 指の角度、手の向き、体を基準にした座標                |
-| `src/lib/handTracking.ts`                             | 最大2本の手の対応付け・追跡                           |
-| `src/lib/recognition.ts`                              | 教材ごとの順序判定、完了段階の保持、復帰              |
-| `src/lib/frameTiming.ts`                              | 推論結果の鮮度判定                                    |
-| `src/lib/drawing.ts`                                  | 手の骨格をCanvasへ描画                                |
-| `src/lib/lessons.ts`                                  | 「こんにちは」の定義、画像、手順、音声の選択意図     |
-| `src/components/PracticeProgress.tsx`                 | 完了・現在・次の段階を表示                            |
-| `src/components/LessonInput.tsx`                      | 選択・音声モード切り替え、4画像の2×2選択欄            |
-| `public/lesson-images/`                               | 利用者が提供した4枚のPNG                              |
-| `src/components/SignDemo.tsx`                         | 手話のお手本のSVGとポーズ                             |
-| `src/components/Dot.tsx` / `Dot.css`                  | 4体のdotsの表示とインタラクション                     |
-| `scripts/setup-vision.mjs` / `vision-models.mjs`      | モデル・WASMの準備とSHA-256検証                       |
-| `tests/*.test.ts`                                     | 判定と進行の自動テスト                                |
-| `scripts/verify-*.cjs` / `browser-smoke.cjs`          | ブラウザ・モデル・キャラクターの検証スクリプト        |
-| `.github/workflows/ci.yml`                            | GitHub Actionsの検証設定                              |
-| `.openai/hosting.json`                                | ChatGPT SitesのSite ID・D1バインディング               |
-| `server/hosted-api.ts` / `server/hosted-usage.ts`        | 公開用音声API・同時接続に対応した永続回数制限           |
-| `app/` / `build/sites-worker.ts`                       | 既存画面を配信するVinext・Workerエントリー             |
-| `db/schema.ts` / `drizzle/`                           | 利用回数だけを保存するD1スキーマとマイグレーション      |
-| `docs/RECOGNITION.md`                                 | 教材と判定方式の根拠、CRO-MAGNONを参考にした点        |
-| `docs/CHARACTER_ASSET.md`                             | キャラクター素材の作り方と出典                        |
-| `docs/QA.md`                                          | 実施済みの検証と、未確認・未解決の事項                |
+| ファイル                                              | 内容                                               |
+| ----------------------------------------------------- | -------------------------------------------------- |
+| `package.json` / `package-lock.json`                  | 依存ライブラリ・実行コマンド・確定バージョン       |
+| `src/App.tsx`                                         | 画面全体、教材の選択、進行とカメラの接続           |
+| `src/hooks/useLiveCoach.ts` / `src/lib/live/coach.ts` | 音声接続、字幕、委任照合、確認と終了処理           |
+| `src/components/VoiceCoach.tsx`                       | 音声開始・終了、字幕、教材確認の画面               |
+| `server/index.ts` / `server/api.ts`                   | 同一Originのローカル配信と音声API境界              |
+| `server/session-config.ts`                            | モデル・Decisionsの選択肢・音声コーチの指示        |
+| `src/hooks/useHandCamera.ts`                          | カメラの取得・停止、Worker、フレームの更新監視     |
+| `public/vision-worker.js`                             | 手・体のモデル初期化と推論                         |
+| `src/lib/geometry.ts`                                 | 指の角度、手の向き、体を基準にした座標             |
+| `src/lib/handTracking.ts`                             | 最大2本の手の対応付け・追跡                        |
+| `src/lib/recognition.ts`                              | 教材ごとの順序判定、完了段階の保持、復帰           |
+| `src/lib/frameTiming.ts`                              | 推論結果の鮮度判定                                 |
+| `src/lib/drawing.ts`                                  | 手の骨格をCanvasへ描画                             |
+| `src/lib/lessons.ts`                                  | 「こんにちは」の定義、画像、手順、音声の選択意図   |
+| `src/components/PracticeProgress.tsx`                 | 完了・現在・次の段階を表示                         |
+| `src/components/LessonInput.tsx`                      | 選択・音声モード切り替え、4画像の2×2選択欄         |
+| `public/lesson-images/`                               | 利用者が提供した4枚のPNG                           |
+| `src/components/SignDemo.tsx`                         | 手話のお手本のSVGとポーズ                          |
+| `src/components/Dot.tsx` / `Dot.css`                  | 4体のdotsの表示とインタラクション                  |
+| `scripts/setup-vision.mjs` / `vision-models.mjs`      | モデル・WASMの準備とSHA-256検証                    |
+| `tests/*.test.ts`                                     | 判定と進行の自動テスト                             |
+| `scripts/verify-*.cjs` / `browser-smoke.cjs`          | ブラウザ・モデル・キャラクターの検証スクリプト     |
+| `.github/workflows/ci.yml`                            | GitHub Actionsの検証設定                           |
+| `.openai/hosting.json`                                | ChatGPT SitesのSite ID・D1バインディング           |
+| `server/hosted-api.ts` / `server/hosted-usage.ts`     | 公開用音声API・同時接続に対応した永続回数制限      |
+| `app/` / `build/sites-worker.ts`                      | 既存画面を配信するVinext・Workerエントリー         |
+| `db/schema.ts` / `drizzle/`                           | 利用回数だけを保存するD1スキーマとマイグレーション |
+| `docs/RECOGNITION.md`                                 | 教材と判定方式の根拠、CRO-MAGNONを参考にした点     |
+| `docs/CHARACTER_ASSET.md`                             | キャラクター素材の作り方と出典                     |
+| `docs/QA.md`                                          | 実施済みの検証と、未確認・未解決の事項             |
 
 ## 教材・素材・ライセンス
 
 「こんにちは」の手順は[秋田市「手話を覚えよう！」](https://www.city.akita.lg.jp/kurashi/shogaifukushi/1006373/1004961.html)の表現を基準にしています。手話には地域・世代による違いがあります。表示する画像は利用者が提供したAI生成の参考ポーズです。自然な表現にはろう者・手話講師の確認が必要です。[調査と設計](docs/RECOGNITION.md)に判定の根拠と限界を記載しています。
 
-独立したハッカソン用プロトタイプで、dotsアカウントには接続していません。カメラ練習中の応援は状態に応じた定型文、任意の音声コーチはOpenAI APIによる対話です。[素材と加工プロンプト](docs/CHARACTER_ASSET.md)・[第三者の素材・ライセンス](THIRD_PARTY_NOTICES.md)も参照してください。
+独立したハッカソン用プロトタイプで、dotsアカウントには接続していません。カメラ練習中の応援は状態に応じた定型文で、停滞時にはDecisions APIが次の案内を選びます。音声コーチの内部処理もOpenAI APIを使います。[素材と加工プロンプト](docs/CHARACTER_ASSET.md)・[第三者の素材・ライセンス](THIRD_PARTY_NOTICES.md)も参照してください。

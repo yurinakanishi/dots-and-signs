@@ -6,6 +6,7 @@ import { PracticeProgress } from './components/PracticeProgress';
 import { LessonInput } from './components/LessonInput';
 import { useHandCamera } from './hooks/useHandCamera';
 import { useLiveCoach } from './hooks/useLiveCoach';
+import { usePracticeHints } from './hooks/usePracticeHints';
 import { drawHands } from './lib/drawing';
 import { lessons, SOURCE_URL } from './lib/lessons';
 import { SignRecognizer, waitingFeedback } from './lib/recognition';
@@ -15,11 +16,13 @@ import './styles.css';
 export default function App() {
   const [selected, setSelected] = useState<LessonId>('hello');
   const [feedback, setFeedback] = useState(waitingFeedback);
+  const [practiceRun, setPracticeRun] = useState(0);
   const current = useRef<LessonId>('hello');
   const recognizer = useRef<SignRecognizer | null>(new SignRecognizer('hello'));
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lesson = lessons.find((l) => l.id === selected)!;
   const reset = useCallback(() => {
+    setPracticeRun((run) => run + 1);
     const recognitionId = lessons.find((item) => item.id === current.current)!.recognitionId;
     recognizer.current = recognitionId ? new SignRecognizer(recognitionId) : null;
     setFeedback(recognitionId ? waitingFeedback(recognitionId) : waitingFeedback());
@@ -77,6 +80,7 @@ export default function App() {
   const busy = camera.state === 'loading' || camera.state === 'requesting';
   const guided = lesson.recognitionId !== null;
   const success = guided && feedback.status === 'success';
+  const hint = usePracticeHints(selected, feedback, active && guided, practiceRun);
   const achievement = feedback.completedSteps;
   const canResume = achievement > 0 && !success;
   const hasPractice = active || achievement > 0;
@@ -98,7 +102,7 @@ export default function App() {
     : success
       ? lesson.cheer
       : active
-        ? feedback.message
+        ? (hint?.message ?? feedback.message)
         : canResume
           ? `ステップ${feedback.step + 1}から続けられるよ。カメラをつけて、今のお手本をまねしてね。`
           : 'ゆっくりで大丈夫。いっしょにやってみよう。';
@@ -321,9 +325,19 @@ export default function App() {
                       </button>
                     )}
                   </div>
-                  <p role="status" aria-live="polite" aria-atomic="true">
+                  <p
+                    role="status"
+                    aria-live="polite"
+                    aria-atomic="true"
+                    data-practice-hint={hint?.id}
+                  >
                     {cheer}
                   </p>
+                  {hint?.id === 'review_demo' && (
+                    <a className="practice-hint-link" href="#lesson-demo">
+                      今のお手本を見る ↑
+                    </a>
+                  )}
                   {guided && active && !success && (
                     <div
                       className="hold-progress"
@@ -347,7 +361,9 @@ export default function App() {
           </div>
         </section>
         <footer className="page-footer">
-          <p>映像はブラウザの中だけで処理。保存・送信しません。</p>
+          <p>
+            映像はブラウザ内で処理し、保存・送信しません。ヒントのため、ステップや手の検出状況をAIに送ります。
+          </p>
           <p>
             判定は手の動きの目安です。表情や会釈はお手本で確認してね。
             <a href={SOURCE_URL} target="_blank" rel="noreferrer">

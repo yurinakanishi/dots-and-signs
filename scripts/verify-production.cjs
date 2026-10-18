@@ -16,10 +16,13 @@ async (page) => {
     await page.goto('http://127.0.0.1:5174/');
     await page.getByRole('heading', { name: 'ひとことを、手話で。' }).waitFor();
     assert(
-      (await page.getByRole('navigation').getByRole('button').count()) === 1,
+      (await page.getByRole('heading', { name: 'こんにちは', exact: true }).count()) === 1,
       'production bundle renders only the hello lesson',
     );
-    await page.waitForFunction(() => [...document.querySelectorAll('.lesson-thumbnail img')].every(image => image.complete && image.naturalWidth > 0));
+    await page.waitForFunction(() => {
+      const image = document.querySelector('.sign-demo');
+      return image && image.complete && image.naturalWidth > 0;
+    });
     assert(true, 'the hello image is served by the production build');
     const artwork = await page.evaluate(async () => {
       const urls = [...document.querySelectorAll('.dot-artwork image')].map(image => image.getAttribute('href'));

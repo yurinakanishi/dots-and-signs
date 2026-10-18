@@ -2,7 +2,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import { readFileSync, readdirSync } from 'node:fs';
 import { handleHostedApi, type HostedEnv } from '../server/hosted-api';
-import { reserveHostedSession, CONNECTION_INTERVAL_MS } from '../server/hosted-usage';
+import {
+  reserveHostedHint,
+  reserveHostedSession,
+  CONNECTION_INTERVAL_MS,
+} from '../server/hosted-usage';
+import { HINT_DAILY_LIMIT, HINT_INTERVAL_MS } from '../src/lib/practice-hints';
 
 const origin = 'https://practice-signs-with-dots.yurinakanishi33.chatgpt.site';
 const sdp = 'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n';
@@ -112,6 +117,70 @@ describe('hosted durable quota', () => {
         },
       }),
     ).toBe('unavailable');
+  });
+});
+
+describe('hosted practice hints', () => {
+  const body = {
+    lessonId: 'hello',
+    step: 0,
+    handCount: 0,
+    bodyVisible: true,
+    holdProgress: 0,
+    preparing: false,
+    stalledSeconds: 12,
+    previousHints: [],
+  };
+  const hintRequest = (value: unknown = body, headers: Record<string, string> = {}) =>
+    new Request(origin + '/api/practice/hint', {
+      method: 'POST',
+      headers: { origin, 'content-type': 'application/json', ...headers },
+      body: JSON.stringify(value),
+    });
+  it('routes to Decisions without opening a Live session or leaking provider fields', async () => {
+    const env = environment();
+    const fetch = vi.fn<typeof globalThis.fetch>(async () =>
+      Response.json({
+        answers: [{ name: 'practice_hint', type: 'choice', choice: 'show_hands' }],
+        secret: 'private',
+      }),
+    );
+    const response = await handleHostedApi(hintRequest(), env, { fetch, now: () => initialTime });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ hint: 'show_hands', source: 'decisions' });
+    expect(fetch.mock.calls[0][0]).toBe('https://api.openai.com/v1/decisions');
+    expect(await reserveHostedSession(env, initialTime)).toBe('allowed');
+    expect(
+      (await handleHostedApi(hintRequest(), env, { fetch, now: () => initialTime })).status,
+    ).toBe(429);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    [body, { origin: 'https://untrusted.example' }, 403],
+    [body, { 'content-type': 'text/plain' }, 415],
+    [{ ...body, image: 'private' }, {}, 400],
+    ['x'.repeat(2049), {}, 413],
+  ] as const)('rejects invalid requests before spending (%#)', async (value, headers, status) => {
+    const fetch = vi.fn();
+    const response = await handleHostedApi(hintRequest(value, headers), environment(), { fetch });
+    expect(response.status).toBe(status);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+  it('enforces a separate durable cap and concurrent spacing across isolates', async () => {
+    const env = environment();
+    const attempts = await Promise.all(
+      Array.from({ length: 10 }, () => reserveHostedHint(env, initialTime)),
+    );
+    expect(attempts.filter((value) => value === 'allowed')).toHaveLength(1);
+    expect(attempts.filter((value) => value === 'rate')).toHaveLength(9);
+    for (let i = 1; i < HINT_DAILY_LIMIT; i++)
+      expect(await reserveHostedHint(env, initialTime + i * HINT_INTERVAL_MS)).toBe('allowed');
+    expect(await reserveHostedHint(env, initialTime + HINT_DAILY_LIMIT * HINT_INTERVAL_MS)).toBe(
+      'limit',
+    );
+    expect(await reserveHostedSession(env, initialTime)).toBe('allowed');
+    expect(await reserveHostedHint(env, initialTime + 86_400_000)).toBe('allowed');
+    expect(await reserveHostedHint({}, initialTime)).toBe('unavailable');
   });
 });
 

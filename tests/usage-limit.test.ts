@@ -22,6 +22,12 @@ afterEach(async () => {
   }
 });
 describe('persistent spending guard', () => {
+  it('persists a separate configurable hint cap across restarts', async () => {
+    const path = await fixture();
+    await writeFile(path, JSON.stringify({ day: '2026-10-18', used: 59 }));
+    expect(await createDailyLimit(path, () => day, 60)()).toBe('allowed');
+    expect(await createDailyLimit(path, () => day, 60)()).toBe('limit');
+  });
   it('blocks the eleventh attempt even across server restarts', async () => {
     const path = await fixture();
     for (let i = 0; i < 10; i++) expect(await createDailyLimit(path, () => day)()).toBe('allowed');
