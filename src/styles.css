@@ -393,31 +393,6 @@ button svg {
   font-size: 11px;
   margin: 7px 0 0;
 }
-.live-step {
-  position: absolute;
-  left: 15px;
-  right: 15px;
-  bottom: 52px;
-  color: white;
-  background: #18241de0;
-  padding: 11px 13px;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 12px;
-  border-radius: 10px;
-  line-height: 1.7;
-}
-.live-step > span {
-  display: grid;
-  place-items: center;
-  min-width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #d9e9bd;
-  color: #314523;
-  font-size: 11px;
-}
 .stop-camera {
   position: absolute;
   bottom: 12px;
@@ -764,9 +739,6 @@ button svg {
     margin-left: 0;
     margin-top: 6px;
   }
-  .live-step {
-    font-size: 11px;
-  }
 }
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -868,5 +840,213 @@ button svg {
   }
   .camera-stage {
     max-height: none;
+  }
+}
+
+/* The learner's progress is separate from a preview of the demonstration. */
+.lesson-heading {
+  gap: 24px;
+}
+.lesson-heading h2 {
+  flex-shrink: 0;
+}
+.practice-progress {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  max-width: 820px;
+}
+.practice-progress li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #e4e9dd;
+  background: #f7f8f4;
+  padding: 9px 12px;
+  border-radius: 11px;
+  color: #606f51;
+}
+.progress-number {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  flex-shrink: 0;
+  border: 1px solid #d8dfce;
+  border-radius: 50%;
+  font:
+    12px 'DM Sans Variable',
+    sans-serif;
+}
+.practice-progress strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+}
+.practice-progress small {
+  display: block;
+  font-size: 10px;
+  margin-top: 3px;
+}
+.practice-progress .progress-current {
+  background: #f1f6e8;
+  border-color: #819b64;
+  color: #3c572d;
+}
+.progress-current .progress-number {
+  background: #4f6d3c;
+  border-color: #4f6d3c;
+  color: #fff;
+}
+.practice-progress .progress-done {
+  background: #edf5e4;
+  color: #4d6b35;
+}
+.progress-done .progress-number,
+.completed-step .step-number {
+  background: #dcebc8;
+  border-color: #dcebc8;
+  color: #48672f;
+}
+.completed-step {
+  color: #63804b;
+}
+.step small {
+  white-space: nowrap;
+  margin-left: auto;
+  font-size: 9px;
+}
+.demo-follow {
+  font-size: 10px;
+  letter-spacing: 0;
+  color: #6d805b;
+}
+.detection-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.detection-status > span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 3px 7px;
+  border-radius: 7px;
+  background: #f1f6e9;
+}
+.detection-status > .detection-missing:first-child {
+  background: #fff2df;
+}
+.detection-status small {
+  font-size: 10px;
+  color: #6f7966;
+}
+.detection-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.detected {
+  color: #4e7434;
+}
+.detection-missing {
+  color: #946136;
+}
+.hold-progress {
+  margin-top: 6px;
+  height: 3px;
+  border-radius: 3px;
+  background: #e9efdf;
+  overflow: hidden;
+}
+.hold-progress i {
+  display: block;
+  height: 100%;
+  background: #8eab64;
+}
+@media (max-width: 950px) {
+  .practice-progress {
+    gap: 6px;
+  }
+  .practice-progress li {
+    padding: 8px;
+    gap: 6px;
+  }
+  .practice-progress strong {
+    font-size: 11px;
+  }
+  .lesson-heading {
+    gap: 16px;
+  }
+}
+@media (min-width: 701px) and (max-height: 800px) {
+  .is-practicing .camera-stage {
+    height: 218px;
+    margin-top: 4px;
+  }
+}
+@media (max-width: 700px) {
+  .lesson-heading {
+    flex-direction: column;
+    padding: 18px 20px;
+    gap: 14px;
+  }
+  .practice-progress {
+    width: 100%;
+    gap: 6px;
+  }
+  .practice-progress li {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 8px;
+  }
+  .progress-number {
+    width: 21px;
+    height: 21px;
+  }
+  .practice-progress strong {
+    font-size: 10px;
+  }
+  .practice-progress small {
+    font-size: 9px;
+  }
+  .detection-status {
+    font-size: 10px;
+    align-items: flex-start;
+  }
+  .detection-status small {
+    font-size: 9px;
+  }
+  .is-practicing .demo-panel {
+    display: grid;
+    grid-template-columns: 132px 1fr;
+    gap: 6px;
+    padding: 12px 18px;
+  }
+  .is-practicing .demo-panel .panel-label {
+    grid-column: 1 / -1;
+  }
+  .is-practicing .sign-demo {
+    height: 144px;
+    margin: 0;
+    align-self: center;
+  }
+  .is-practicing .step {
+    padding: 5px 4px;
+    font-size: 10px;
+    gap: 5px;
+  }
+  .is-practicing .demo-note {
+    display: none;
   }
 }

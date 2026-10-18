@@ -18,9 +18,11 @@ self.onmessage = async ({ data }) => {
         },
         runningMode: 'VIDEO',
         numHands: 2,
-        minHandDetectionConfidence: 0.7,
-        minHandPresenceConfidence: 0.7,
-        minTrackingConfidence: 0.7,
+        // Official defaults recover smaller/second hands more readily. These
+        // detection thresholds are independent of the ordered gesture checks.
+        minHandDetectionConfidence: 0.5,
+        minHandPresenceConfidence: 0.5,
+        minTrackingConfidence: 0.5,
       };
       landmarker = await HandLandmarker.createFromOptions(files, options);
       poseLandmarker = await PoseLandmarker.createFromOptions(files, {
@@ -62,6 +64,7 @@ self.onmessage = async ({ data }) => {
         // this exact Tasks model. Do not apply legacy mp.solutions.hands swaps.
         // Only the displayed video is mirrored; inference pixels stay unmirrored.
         handedness: result.handedness[i]?.[0]?.categoryName === 'Right' ? 'Right' : 'Left',
+        handednessScore: result.handedness[i]?.[0]?.score ?? 0,
       }));
       self.postMessage({
         type: 'result',

@@ -38,7 +38,7 @@ async (page) => {
     await page.evaluate(async () => {
       const { motionFrames } = await import('/tests/fixtures.ts')
       window.__setSequence = (id, mirrored = false) => {
-        window.__frames = motionFrames(id, mirrored); window.__cursor = 0
+        window.__frames = motionFrames(id, mirrored).flatMap(f => [f, f]); window.__cursor = 0
       }
       window.__setSequence('hello')
       window.__NativeWorker = window.Worker
@@ -111,6 +111,10 @@ async (page) => {
     assert(true, 'late camera permission after cancellation releases tracks')
     assert(errors.length === 0, 'no unhandled page errors')
     return { passed: checks.length, checks }
+  } catch (error) {
+    const state = await page.locator('.practice-card').innerText()
+    await page.screenshot({ path: 'output/playwright/browser-failure.png', fullPage: true })
+    throw new Error(error.message + '\nCurrent practice state:\n' + state)
   } finally {
     await page.evaluate(() => {
       clearInterval(window.__paintTimer)

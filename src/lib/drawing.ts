@@ -31,7 +31,8 @@ export function drawHands(canvas: HTMLCanvasElement, frame: Frame, success: bool
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   for (const hand of frame.hands) {
     const p = hand.landmarks;
-    ctx.strokeStyle = success ? '#dfef9d' : '#f0f9cf';
+    const color = success ? '#dfef9d' : (hand.trackId ?? 1) % 2 ? '#65d8ff' : '#ffcf74';
+    ctx.strokeStyle = color;
     ctx.lineWidth = Math.max(2, canvas.width / 400);
     ctx.shadowColor = '#183e2b';
     ctx.shadowBlur = 7;
@@ -45,7 +46,7 @@ export function drawHands(canvas: HTMLCanvasElement, frame: Frame, success: bool
     for (const [i, point] of p.entries()) {
       ctx.beginPath();
       ctx.arc(point.x * canvas.width, point.y * canvas.height, i % 4 === 0 ? 5 : 3, 0, Math.PI * 2);
-      ctx.fillStyle = '#edf7c7';
+      ctx.fillStyle = color;
       ctx.fill();
     }
   }

@@ -5,6 +5,8 @@ export type Hand = {
   landmarks: Point[];
   worldLandmarks: Point[];
   handedness: 'Left' | 'Right';
+  handednessScore?: number;
+  trackId?: number;
 };
 export type Frame = {
   hands: Hand[];
@@ -19,6 +21,12 @@ export type Feedback = {
   status: 'waiting' | 'adjust' | 'move' | 'success';
   message: string;
   step: number;
+  completedSteps: number;
+  holdProgress: number;
+  handCount: number;
+  requiredHands: number;
+  bodyVisible: boolean;
+  demoFrame: number;
 };
 export type WorkerResponse =
   | { type: 'ready' }

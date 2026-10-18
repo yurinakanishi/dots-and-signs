@@ -79,7 +79,8 @@ export function useHandCamera(onFrame: (frame: Frame) => void, onStop: () => voi
         throw new Error(
           'このブラウザは手の検出に対応していません。PCのChromeまたはEdgeで開いてください。',
         );
-      const worker = new Worker(`${import.meta.env.BASE_URL}vision-worker.js`);
+      // Invalidate the stable public worker URL when its detection configuration changes.
+      const worker = new Worker(`${import.meta.env.BASE_URL}vision-worker.js?v=two-hands-20261018`);
       resources.current.worker = worker;
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(

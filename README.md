@@ -8,7 +8,9 @@
 
 ことばを選び、お手本を見て、「カメラで練習する」を押します。顔・肩・両手を映して、dotsの一言に沿ってまねしてください。左右どちらの手でも練習できます。
 
-画面はこの練習だけです。学習記録、達成率、サイドメニュー、別画面の設定はありません。お手本は一時停止でき、手順を押すとその形を見られます。OSの「動きを減らす」設定では自動再生しません。
+画面はこの練習だけです。カメラを始めると、3段階の「できた・いまここ・つぎ」と「ステップ 1 / 3」を表示し、お手本が判定に連動します。検出した手の数と、その段階に必要な手の数を別々に表示します。2つの手の骨格は青・黄色で描き分けます。形を少し保つと次へ進み、一瞬の検出漏れでは今の段階で待ちます。
+
+学習記録、達成率、サイドメニュー、別画面の設定はありません。カメラを止めている間は、お手本を一時停止したり手順を押して確認できます。OSの「動きを減らす」設定では自動再生しません。
 
 ## ローカル起動
 
@@ -32,7 +34,7 @@ npm run dev
 | こんばんは | 顔の左右に手のひら → 目の前で交差 → 両手の人差し指を立てて曲げる        |
 | ありがとう | 甲を上に向けた手に、小指側を直角にのせる → 下の手を保ち、上の手を上げる |
 
-手の21点と体の33点から、形・向き・顔や肩との相対位置・動く順番を確認します。手の消失、不確かな顔位置、大きなフレーム欠落などでは最初からやり直します。
+手の21点と体の33点から、形・向き・顔や肩との相対位置・動く順番を確認します。手や顔の短い検出漏れでは判定を一時停止し、1秒以上の消失、大きなフレーム欠落などでは理由を表示して最初からやり直します。見えない手を補って成功にすることはありません。
 
 **判定は手の動きの練習補助です。3つのあいさつの実利用者に対する認識率は未測定です。** 表情、会釈、接触の有無、手話全体の自然さは採点していません。特に両手が重なる瞬間や横向きの手は検出が途切れやすく、正しい動きでもやり直しになることがあります。一人での練習を想定しています。判定結果を通訳・語学評価として利用する設計ではありません。
 
@@ -45,7 +47,7 @@ npm run check
 npm run preview
 ```
 
-32件の認識ルールテスト、実モデル10ケース、ブラウザ23項目を確認しました。検証内容と残る制約は[docs/QA.md](docs/QA.md)を参照してください。
+43件の認識・追跡・進行表示のテスト、実モデル10ケースと両手検出9ケース、既存ブラウザ23項目と進行表示19項目を確認しました。実モデルの両手結果がカメラ処理から画面へ届くことも確認しました。検証内容と残る制約は[docs/QA.md](docs/QA.md)を参照してください。
 
 ブラウザ確認の再実行は、開発サーバーと専用の検証ブラウザを使います。
 
@@ -53,7 +55,9 @@ npm run preview
 node scripts/download-test-assets.mjs
 npx --yes --package @playwright/cli playwright-cli -s=greetings open http://127.0.0.1:5173/ --browser chrome
 npx --yes --package @playwright/cli playwright-cli -s=greetings run-code --filename=scripts/verify-model.cjs
+npx --yes --package @playwright/cli playwright-cli -s=greetings run-code --filename=scripts/verify-two-hands.cjs
 npx --yes --package @playwright/cli playwright-cli -s=greetings run-code --filename=scripts/browser-smoke.cjs
+npx --yes --package @playwright/cli playwright-cli -s=greetings run-code --filename=scripts/verify-progress.cjs
 npx --yes --package @playwright/cli playwright-cli -s=greetings close
 ```
 

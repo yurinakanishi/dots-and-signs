@@ -97,7 +97,7 @@ describe('uncertainty resets rather than awarding a pass', () => {
     'missing-hand',
     'clipped',
     'nan',
-    'duplicate-labels',
+    'duplicate-detections',
   ] as const) {
     it('rejects ' + mutation, () => {
       const frames = motionFrames('thanks');
@@ -108,15 +108,24 @@ describe('uncertainty resets rather than awarding a pass', () => {
         if (mutation === 'missing-hand') f.hands.pop();
         if (mutation === 'clipped') f.hands[0].landmarks[8].y = 0;
         if (mutation === 'nan') f.hands[0].worldLandmarks[8].x = NaN;
-        if (mutation === 'duplicate-labels') f.hands[1].handedness = f.hands[0].handedness;
+        if (mutation === 'duplicate-detections')
+          f.hands = [f.hands[0], structuredClone(f.hands[0])];
       }
       expect(run('thanks', frames).at(-1)?.status).not.toBe('success');
     });
   }
-  it('drops the armed sequence when a hand disappears', () => {
+  it('pauses rather than discarding progress on a brief missing detection', () => {
     const frames = motionFrames('thanks');
-    frames[6].hands = [];
-    expect(run('thanks', frames).at(-1)?.status).not.toBe('success');
+    frames[7].hands = [];
+    // Reacquisition must earn a fresh stable hold, not inherit the old timer.
+    frames.splice(12, 0, ...repeat(frame(thanks()), 6));
+    const results = run(
+      'thanks',
+      frames.map((f, i) => ({ ...f, timestamp: i * 80 })),
+    );
+    expect(results[7].step).toBe(1);
+    expect(results[7].status).toBe('adjust');
+    expect(results.at(-1)?.status).toBe('success');
   });
   it('resets on a long gap or non-increasing timestamp', () => {
     for (const delta of [-80, 1000]) {
@@ -141,9 +150,9 @@ describe('uncertainty resets rather than awarding a pass', () => {
   });
   it('expires an unfinished movement', () => {
     const frames = motionFrames('thanks').slice(0, 6);
-    for (let i = 6; i < 120; i++)
+    for (let i = 6; i < 410; i++)
       frames.push(frame([makeHand('fist', 0.08, 0.18), thanks()[1]], i * 80));
-    for (let i = 120; i < 126; i++) frames.push(frame(thanks(true), i * 80));
+    for (let i = 410; i < 416; i++) frames.push(frame(thanks(true), i * 80));
     expect(run('thanks', frames).at(-1)?.status).not.toBe('success');
   });
 });

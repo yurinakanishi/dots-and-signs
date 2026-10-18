@@ -105,6 +105,7 @@ export function motionFrames(sign: SignId, mirrored = false): Frame[] {
     hold([makeHand('open', 0.12, -0.52), makeHand('open', -0.12, -0.52, true)]);
     hold([makeHand('index', -0.12, -0.08), makeHand('index', 0.12, -0.08, true)], 1);
   } else {
+    hold([thanks()[1]]);
     hold(thanks());
     hold(thanks(true));
     return mirrored ? result.map(mirror) : result;

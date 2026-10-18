@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Dot } from './components/Dot';
 import { SignDemo } from './components/SignDemo';
+import { PracticeProgress } from './components/PracticeProgress';
 import { useHandCamera } from './hooks/useHandCamera';
 import { drawHands } from './lib/drawing';
 import { lessons, SOURCE_URL } from './lib/lessons';
@@ -29,18 +30,30 @@ export default function App() {
   const lesson = lessons.find((l) => l.id === selected)!;
   const reset = useCallback(() => {
     recognizer.current.reset(current.current);
-    setFeedback(waitingFeedback());
+    setFeedback(waitingFeedback(current.current));
     const canvas = canvasRef.current;
     canvas?.getContext('2d')?.clearRect(0, 0, canvas.width, canvas.height);
   }, []);
   const handleFrame = useCallback((frame: Frame) => {
     const next = recognizer.current.update(frame);
     setFeedback((old) =>
-      old.status === next.status && old.message === next.message && old.step === next.step
+      old.status === next.status &&
+      old.message === next.message &&
+      old.step === next.step &&
+      old.completedSteps === next.completedSteps &&
+      old.holdProgress === next.holdProgress &&
+      old.handCount === next.handCount &&
+      old.bodyVisible === next.bodyVisible &&
+      old.demoFrame === next.demoFrame
         ? old
         : next,
     );
-    if (canvasRef.current) drawHands(canvasRef.current, frame, next.status === 'success');
+    if (canvasRef.current)
+      drawHands(
+        canvasRef.current,
+        { ...frame, hands: recognizer.current.visibleHands },
+        next.status === 'success',
+      );
   }, []);
   const camera = useHandCamera(handleFrame, reset);
   const active = camera.state === 'active';
@@ -96,21 +109,48 @@ export default function App() {
             );
           })}
         </nav>
-        <section className="practice-card" aria-labelledby="lesson-title">
+        <section
+          className={`practice-card${active ? ' is-practicing' : ''}`}
+          aria-labelledby="lesson-title"
+        >
           <div className="lesson-heading">
             <h2 id="lesson-title">{lesson.label}</h2>
-            <p>{lesson.intro}</p>
+            <PracticeProgress lesson={lesson} feedback={feedback} active={active} />
           </div>
           <div className="practice-grid">
-            <SignDemo key={selected} lesson={lesson} />
+            <SignDemo key={selected} lesson={lesson} feedback={active ? feedback : undefined} />
             <section className="camera-panel" aria-label="カメラで練習">
               <div className="panel-label">
-                <span>やってみよう</span>
+                <span>
+                  {success
+                    ? '3ステップ完了！'
+                    : active
+                      ? `ステップ ${feedback.step + 1} / 3`
+                      : 'やってみよう'}
+                </span>
                 <span className={active ? 'camera-status live' : 'camera-status'}>
                   <i />
                   {active ? 'カメラ ON' : 'カメラ OFF'}
                 </span>
               </div>
+              {active && !success && (
+                <div className="detection-status" aria-label="カメラの検出状態">
+                  <span
+                    className={
+                      feedback.handCount >= feedback.requiredHands
+                        ? 'detected'
+                        : 'detection-missing'
+                    }
+                  >
+                    <i aria-hidden="true" />
+                    手を{feedback.handCount}本検出
+                    <small>この段階は{feedback.requiredHands}本</small>
+                  </span>
+                  <span className={feedback.bodyVisible ? 'detected' : 'detection-missing'}>
+                    {feedback.bodyVisible ? '顔・肩 OK' : '顔と肩も映してね'}
+                  </span>
+                </div>
+              )}
               <div
                 className={
                   'camera-stage' +
@@ -190,19 +230,13 @@ export default function App() {
                     )}
                   </div>
                 )}
-                {active && !success && (
-                  <div className="live-step">
-                    <span>{feedback.step + 1}</span>
-                    {lesson.steps[feedback.step]}
-                  </div>
-                )}
                 {success && (
                   <div className="success-overlay">
                     <span className="success-check">
                       <Check size={28} />
                     </span>
                     <h3>できたね！</h3>
-                    <p>手の動きを確認できたよ。</p>
+                    <p>3つの動きを、順番に確認できたよ。</p>
                     <button
                       className="primary-button"
                       onClick={() =>
@@ -227,9 +261,28 @@ export default function App() {
               </div>
               <div className="companion">
                 <Dot mood={success ? 'happy' : active ? 'thinking' : 'idle'} />
-                <div className="companion-message" aria-live="polite" aria-atomic="true">
+                <div className="companion-message">
                   <span>dots</span>
-                  <p>{cheer}</p>
+                  <p role="status" aria-live="polite" aria-atomic="true">
+                    {cheer}
+                  </p>
+                  {active && !success && (
+                    <div
+                      className="hold-progress"
+                      aria-label="今の形を保つ時間"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={1}
+                      aria-valuenow={feedback.holdProgress}
+                      aria-valuetext={
+                        feedback.holdProgress > 0
+                          ? 'その形で少し止めてね'
+                          : 'お手本の形を待っています'
+                      }
+                    >
+                      <i style={{ width: `${feedback.holdProgress * 100}%` }} />
+                    </div>
+                  )}
                 </div>
               </div>
             </section>

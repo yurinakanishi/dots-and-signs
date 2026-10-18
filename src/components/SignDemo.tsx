@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Pause, Play } from 'lucide-react';
+import { Check, Pause, Play } from 'lucide-react';
 import type { Lesson } from '../lib/lessons';
-import type { SignId } from '../lib/types';
+import type { Feedback, SignId } from '../lib/types';
 
 type Shape = 'two' | 'index' | 'bow' | 'open' | 'flat' | 'edge' | 'rest';
 type Position = { x: number; y: number; angle?: number; flip?: boolean; shape: Shape };
@@ -82,17 +82,19 @@ function pose(sign: SignId, frame: number): [Position, Position | null] {
   ];
 }
 
-export function SignDemo({ lesson }: { lesson: Lesson }) {
-  const [frame, setFrame] = useState(0);
+export function SignDemo({ lesson, feedback }: { lesson: Lesson; feedback?: Feedback }) {
+  const [previewFrame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(
     () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   );
   const steps = timeline[lesson.id];
+  const controlled = !!feedback;
+  const frame = feedback?.demoFrame ?? previewFrame;
   useEffect(() => {
-    if (!playing) return;
+    if (!playing || controlled) return;
     const timer = window.setInterval(() => setFrame((f) => (f + 1) % steps.length), 1650);
     return () => window.clearInterval(timer);
-  }, [playing, steps.length]);
+  }, [playing, controlled, steps.length]);
   const currentStep = steps[frame];
   const hands = pose(lesson.id, frame);
   const bow =
@@ -104,14 +106,18 @@ export function SignDemo({ lesson }: { lesson: Lesson }) {
     <section className="demo-panel" aria-label={lesson.label + 'のお手本'}>
       <div className="panel-label">
         <span>お手本</span>
-        <button
-          className="play-toggle"
-          onClick={() => setPlaying((p) => !p)}
-          aria-label={playing ? 'お手本を一時停止' : 'お手本を再生'}
-        >
-          {playing ? <Pause size={15} /> : <Play size={15} />}
-          <span>{playing ? 'とめる' : '再生'}</span>
-        </button>
+        {controlled ? (
+          <span className="demo-follow">あなたのステップに連動</span>
+        ) : (
+          <button
+            className="play-toggle"
+            onClick={() => setPlaying((p) => !p)}
+            aria-label={playing ? 'お手本を一時停止' : 'お手本を再生'}
+          >
+            {playing ? <Pause size={15} /> : <Play size={15} />}
+            <span>{playing ? 'とめる' : '再生'}</span>
+          </button>
+        )}
       </div>
       <svg
         className="sign-demo"
@@ -208,21 +214,40 @@ export function SignDemo({ lesson }: { lesson: Lesson }) {
       <ol className="demo-steps">
         {lesson.steps.map((step, i) => (
           <li key={step}>
-            <button
-              className={currentStep === i ? 'step active-step' : 'step'}
-              aria-pressed={currentStep === i}
-              onClick={() => {
-                setPlaying(false);
-                setFrame(steps.lastIndexOf(i));
-              }}
-            >
-              <span className="step-number">{i + 1}</span>
-              <span>{step}</span>
-            </button>
+            {controlled ? (
+              <div
+                className={`step ${i < feedback.completedSteps ? 'completed-step' : i === feedback.step ? 'active-step' : ''}`}
+                aria-current={
+                  i === feedback.step && feedback.completedSteps < 3 ? 'step' : undefined
+                }
+              >
+                <span className="step-number">
+                  {i < feedback.completedSteps ? <Check size={13} aria-label="完了" /> : i + 1}
+                </span>
+                <span>{step}</span>
+                {i === feedback.step && feedback.completedSteps < 3 && <small>いまここ</small>}
+              </div>
+            ) : (
+              <button
+                className={currentStep === i ? 'step active-step' : 'step'}
+                aria-pressed={currentStep === i}
+                onClick={() => {
+                  setPlaying(false);
+                  setFrame(steps.lastIndexOf(i));
+                }}
+              >
+                <span className="step-number">{i + 1}</span>
+                <span>{step}</span>
+              </button>
+            )}
           </li>
         ))}
       </ol>
-      <p className="demo-note">動きのイメージ。左右は使いやすいほうで。</p>
+      <p className="demo-note">
+        {controlled
+          ? '形ができたら、自動で次のお手本へ。'
+          : 'カメラを始めると、あなたの進み具合に合わせるよ。'}
+      </p>
     </section>
   );
 }
