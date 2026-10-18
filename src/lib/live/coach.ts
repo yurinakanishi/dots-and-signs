@@ -2,7 +2,7 @@ import type { LessonId } from '../types';
 import { isLessonId, lessonLabels as labels, lessonNames, lessons } from '../lessons';
 import { MAX_SESSION_SECONDS } from './limits';
 
-export type LessonChoice = LessonId | 'none';
+export type LessonChoice = LessonId | 'none' | 'unclear';
 export type TranscriptFragment = {
   id: string;
   speaker: 'user' | 'coach';
@@ -45,7 +45,8 @@ const initial = (): CoachSnapshot => ({
   seconds: 0,
   finalized: false,
 });
-const isChoice = (value: unknown): value is LessonChoice => value === 'none' || isLessonId(value);
+const isChoice = (value: unknown): value is LessonChoice =>
+  value === 'none' || value === 'unclear' || isLessonId(value);
 const record = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -470,7 +471,12 @@ export class LiveCoach {
       return;
     }
     this.update({ recommendedLessonId: answer.choice, notice: '' });
-    if (answer.choice === 'none') {
+    if (answer.choice === 'unclear') {
+      this.commentary(
+        event.delegation_id,
+        '練習したいことばを1つに特定できませんでした。教材は変更していません。教材がないとは言わず、「練習したいことばを、もう一度1つだけ話してね。『こんにちは』だけでも選べるよ」と案内してください。',
+      );
+    } else if (answer.choice === 'none') {
       this.commentary(
         event.delegation_id,
         `対応する教材がありません。教材は変更していません。「この文章の手話はまだ教材化していません」と伝え、${lessonNames}から選べると案内してください。`,

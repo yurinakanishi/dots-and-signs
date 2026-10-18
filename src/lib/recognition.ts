@@ -22,22 +22,34 @@ type LocatedHand = NonNullable<ReturnType<typeof inspectHand>> & {
 };
 type Phase = 'intro' | 'cross' | 'greet' | 'bow' | 'place' | 'lift';
 const distance = (a: XY, b: XY) => Math.hypot(a.x - b.x, a.y - b.y);
-const extended = (h: LocatedHand, finger: Finger, minimum = 0.68) => {
+// Practice tolerates slightly bent raised fingers and loosely folded resting fingers.
+// These ranges overlap, so a bow must also change from the confirmed starting pose.
+const extended = (h: LocatedHand, finger: Finger, minimum = 0.55) => {
   const value = h.extensions[finger];
   return value !== null && value >= minimum;
 };
-const folded = (h: LocatedHand, finger: Finger, maximum = 0.5) => {
+const folded = (h: LocatedHand, finger: Finger, maximum = 0.7) => {
   const value = h.extensions[finger];
   return value !== null && value < maximum;
 };
 const open = (h: LocatedHand) =>
   (['index', 'middle', 'ring', 'pinky'] as const).every((f) => extended(h, f));
+// The thumb's resting position varies and is often occluded by the other fingers.
 const otherFolded = (h: LocatedHand) =>
-  folded(h, 'middle') && folded(h, 'ring') && folded(h, 'pinky') && folded(h, 'thumb', 0.72);
+  folded(h, 'middle') && folded(h, 'ring') && folded(h, 'pinky');
 const indexUp = (h: LocatedHand) =>
-  otherFolded(h) && extended(h, 'index', 0.72) && h.indexLift > 0.65 && h.up > 0.55;
-const indexBowed = (h: LocatedHand) =>
-  otherFolded(h) && h.extensions.index !== null && (folded(h, 'index', 0.55) || h.indexLift < 0.45);
+  otherFolded(h) && extended(h, 'index') && h.indexLift > 0.45 && h.up > 0.3;
+const indexBowed = (h: LocatedHand, origin: LocatedHand) => {
+  const current = h.extensions.index;
+  const initial = origin.extensions.index;
+  return (
+    otherFolded(h) &&
+    current !== null &&
+    initial !== null &&
+    ((folded(h, 'index') && initial - current >= 0.16) ||
+      (h.indexLift < 0.65 && origin.indexLift - h.indexLift >= 0.18))
+  );
+};
 const nearChest = (h: LocatedHand) => Math.abs(h.at.x) < 0.75 && h.at.y > -0.28 && h.at.y < 0.8;
 
 export function waitingFeedback(sign: SignId = 'hello'): Feedback {
@@ -285,11 +297,10 @@ export class SignRecognizer {
     if (this.sign === 'hello' && this.phase === 'intro') {
       const h = hands.find(
         (h) =>
-          extended(h, 'index', 0.72) &&
-          extended(h, 'middle', 0.72) &&
+          extended(h, 'index') &&
+          extended(h, 'middle') &&
           folded(h, 'ring') &&
           folded(h, 'pinky') &&
-          folded(h, 'thumb', 0.72) &&
           distance(h.tip, body.forehead) < 0.23 &&
           h.up > 0.35,
       );
@@ -381,7 +392,9 @@ export class SignRecognizer {
         return this.recover('今の位置で両手の人差し指を立て直そう。そこから、おじぎを続けよう。');
       const bowed = hands.every((h) => {
         const origin = this.origin.get(h.id);
-        return origin && nearChest(h) && indexBowed(h) && distance(h.wrist, origin.wrist) < 0.3;
+        return (
+          origin && nearChest(h) && indexBowed(h, origin) && distance(h.wrist, origin.wrist) < 0.3
+        );
       });
       if (this.settle(bowed, time, 240)) return this.success();
       return this.reply('手首はそのまま。両方の人差し指を曲げて、軽く会釈。');

@@ -104,13 +104,28 @@ async (page) => {
     await page.getByRole('heading', { name: 'OpenAIへようこそ', exact: true }).waitFor();
     assert(await page.locator('.practice-progress').count() === 0, 'fourth lesson does not borrow another sign classifier');
     assert(await page.evaluate(() => window.__sent.some(e => e.delegation_id === 'fourth' && e.content?.includes('自動判定はありません'))), 'fourth lesson limitation reaches voice commentary');
+    await page.evaluate(() => window.__decision('uncertain', 'unclear'));
+    await page.getByText('練習したいことばを、もう一度1つだけ話してね。「こんにちは」だけでも選べるよ。', { exact: true }).waitFor();
+    assert(await page.locator('.voice-unsupported').count() === 0, 'uncertain speech asks again without claiming the lesson is unavailable');
+    assert(await page.getByRole('heading', { name: 'OpenAIへようこそ', exact: true }).isVisible(), 'uncertain speech keeps the displayed lesson');
+    assert(await page.evaluate(() => window.__sent.some(e => e.delegation_id === 'uncertain' && e.content?.includes('もう一度1つだけ'))), 'clarification reaches the same voice delegation');
+    await page.evaluate(() => {
+      window.__emit({ type: 'session.input_transcript.delta', event_id: 'hello-input', delta: 'こんにちはいや、あるあるよ入っちゃ', start_ms: 0, end_ms: 1000 });
+      window.__decision('hello-retry', 'hello');
+    });
+    await page.getByRole('button', { name: 'このことばを練習する' }).waitFor();
+    assert((await page.locator('.voice-recommendation strong').innerText()) === 'こんにちは', 'hello can be proposed after unclear speech');
+    assert(await page.getByRole('heading', { name: 'OpenAIへようこそ', exact: true }).isVisible(), 'hello still waits for confirmation');
+    await page.getByRole('button', { name: 'このことばを練習する' }).click();
+    await page.getByRole('heading', { name: 'こんにちは', exact: true }).waitFor();
+    assert(await page.evaluate(() => window.__sent.some(e => e.delegation_id === 'hello-retry' && e.content?.includes('実際に表示'))), 'confirmed hello is acknowledged to its delegation');
     await page.evaluate(() => {
       window.__emit({ type: 'session.input_transcript.delta', event_id: 'u1', delta: '受付を案内したい', start_ms: 0, end_ms: 1000 });
       window.__emit({ type: 'session.output_transcript.delta', event_id: 'a1', delta: 'この文章の手話はまだ教材化していません。', start_ms: 1000, end_ms: 2000 });
       window.__decision('unsupported', 'none');
     });
     await page.locator('.voice-unsupported').waitFor();
-    assert(await page.getByRole('heading', { name: 'OpenAIへようこそ', exact: true }).isVisible(), 'unsupported request preserves the current lesson');
+    assert(await page.getByRole('heading', { name: 'こんにちは', exact: true }).isVisible(), 'unsupported request preserves the current lesson');
     await page.setViewportSize({ width: 390, height: 844 });
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'voice mode fits mobile width');
     await page.screenshot({ path: 'output/playwright/input-voice-mobile.png', fullPage: true });

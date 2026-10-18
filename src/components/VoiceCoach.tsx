@@ -131,6 +131,11 @@ export function VoiceCoach({
               この文章の手話はまだ教材化していません。今は{lessonNames}を選べます。
             </p>
           )}
+          {coach.recommendedLessonId === 'unclear' && (
+            <p className="voice-notice" role="status">
+              練習したいことばを、もう一度1つだけ話してね。「こんにちは」だけでも選べるよ。
+            </p>
+          )}
           {coach.notice && !coach.error && (
             <p className="voice-notice" role="status">
               {coach.notice}

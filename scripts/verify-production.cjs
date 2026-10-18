@@ -1,4 +1,4 @@
-// Run npm run build, then PORT=5174 npm start in a separate terminal first.
+// Build Sites, initialize the local D1 schema once, then npm run preview -- --port 5174.
 async (page) => {
   const checks = [],
     errors = [];
@@ -18,6 +18,15 @@ async (page) => {
     );
     await page.waitForFunction(() => [...document.querySelectorAll('.lesson-thumbnail img')].every(image => image.complete && image.naturalWidth > 0));
     assert(true, 'four supplied images are served by the production build');
+    const artwork = await page.evaluate(async () => {
+      const urls = [...document.querySelectorAll('.dot-artwork image')].map(image => image.getAttribute('href'));
+      return urls.length > 0 && (await Promise.all(urls.map(async url => {
+        if (!url || url.includes('[object')) return false;
+        const response = await fetch(url);
+        return response.ok && response.headers.get('content-type')?.startsWith('image/');
+      }))).every(Boolean);
+    });
+    assert(artwork, 'character bodies are real image URLs in both bundlers');
     await page.getByRole('button', { name: '音声入力モード', exact: true }).click();
     assert(await page.getByRole('switch', { name: '音声入力', exact: true }).getAttribute('aria-checked') === 'false', 'production voice mode starts OFF');
     await page.getByRole('button', { name: '選択モード', exact: true }).click();

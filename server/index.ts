@@ -10,7 +10,7 @@ const port = Number(process.env.PORT || 5173);
 if (!Number.isInteger(port) || port < 1024 || port > 65535)
   throw new Error('PORT must be 1024–65535');
 const root = fileURLToPath(new URL('../', import.meta.url));
-const dist = resolve(root, 'dist');
+const dist = resolve(root, 'dist-local');
 const api = createApiHandler({
   port,
   apiKey: process.env.OPENAI_API_KEY,
@@ -67,7 +67,7 @@ const server = createServer(async (req, res) => {
         .on('error', () => res.destroy())
         .pipe(res);
   } catch {
-    if (!res.headersSent) res.writeHead(404).end('Not found. Run npm run build first.');
+    if (!res.headersSent) res.writeHead(404).end('Not found. Run npm run build:local first.');
     else res.destroy();
   }
 });
@@ -76,6 +76,7 @@ if (process.argv.includes('--dev')) {
   const { createServer: createVite } = await import('vite');
   vite = await createVite({
     root,
+    configFile: resolve(root, 'vite.local.config.ts'),
     server: {
       middlewareMode: true,
       hmr: { server },

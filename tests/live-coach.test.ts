@@ -223,6 +223,26 @@ describe('Live coach transport and application contract', () => {
     expect(h.sent().at(-1)).toMatchObject({ delegation_id: 'd1' });
     expect(h.sent().at(-1).content).toContain('教材化していません');
   });
+  it('asks for clarification without claiming that a lesson is unavailable', async () => {
+    const h = setup();
+    await h.ready();
+    h.created('first');
+    h.decide('first', 'hello');
+    h.created('uncertain');
+    h.decide('uncertain', 'unclear');
+    expect(h.coach.getSnapshot().recommendedLessonId).toBe('unclear');
+    expect(h.sent().at(-1)).toMatchObject({ delegation_id: 'uncertain' });
+    expect(h.sent().at(-1).content).toContain('もう一度1つだけ');
+    expect(h.sent().at(-1).content).not.toContain('教材化していません');
+    h.coach.confirmLesson('hello');
+    expect(h.apply).not.toHaveBeenCalled();
+    h.created('retry');
+    h.decide('retry', 'hello');
+    h.coach.confirmLesson('hello');
+    h.coach.reportDisplayedLesson('hello');
+    expect(h.apply).toHaveBeenCalledExactlyOnceWith('hello');
+    expect(h.sent().at(-1)).toMatchObject({ delegation_id: 'retry' });
+  });
   it('ignores old, duplicate, uncorrelated and transcript-trigger decisions', async () => {
     const h = setup();
     await h.ready();

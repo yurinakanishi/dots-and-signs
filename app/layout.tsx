@@ -1,0 +1,18 @@
+import type { ReactNode } from 'react';
+import '@fontsource-variable/dm-sans';
+import '@fontsource-variable/noto-sans-jp';
+import '../src/styles.css';
+
+export const metadata = {
+  title: 'dots & signs — 手話を、最初のひとことから。',
+  icons: { icon: '/favicon.svg' },
+  description: '音声か4つの選択肢から教材を選び、画像のお手本とカメラで練習できます。',
+};
+
+export default function Layout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="ja">
+      <body>{children}</body>
+    </html>
+  );
+}

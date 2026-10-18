@@ -7,11 +7,28 @@ if (!key) {
   process.exit(1);
 }
 const cases = [
+  { input: 'こんにちは', expected: 'hello' },
+  { input: 'こんにちはいや、あるあるよ入っちゃ', expected: 'hello' },
+  { input: 'あの、こんにちは、こんにちは', expected: 'hello' },
+  { input: 'こんばんは', expected: 'evening' },
+  { input: 'えー、こんばんは、あの', expected: 'evening' },
+  { input: 'ありがとう', expected: 'thanks' },
+  { input: 'ありがとうございます', expected: 'thanks' },
+  { input: 'OpenAIへようこそ', expected: 'welcome' },
+  { input: 'ようこそ', expected: 'welcome' },
   { input: 'こんにちはを手話で練習したいです。', expected: 'hello' },
   { input: 'こんばんはを手話で練習したいです。', expected: 'evening' },
   { input: '助けてくれた人にありがとうと伝えたい。', expected: 'thanks' },
   { input: 'OpenAIへようこそを練習したいです。', expected: 'welcome' },
   { input: '私はOpenAIのイベントに参加したい、と手話で伝えたい。', expected: 'none' },
+  { input: 'こんにちは、受付はどこですかを手話にして', expected: 'none' },
+  { input: 'ありがとう、明日は来られませんという文章を手話にして', expected: 'none' },
+  { input: 'おはよう', expected: 'none' },
+  { input: 'こんにちはじゃなくて、こんばんは', expected: 'evening' },
+  { input: 'こんにちははやめて', expected: 'unclear' },
+  { input: 'やっぱり取り消し', expected: 'unclear' },
+  { input: 'あの、その、ええと', expected: 'unclear' },
+  { input: 'こんにちはとありがとうのどちらにしようかな', expected: 'unclear' },
 ];
 const results: unknown[] = [];
 let failed = false;
@@ -33,6 +50,7 @@ for (const test of cases) {
   const actual = data.answers?.find((a) => a.name === 'lesson_id' && a.type === 'choice')?.choice;
   const passed = response.ok && actual === test.expected;
   const result = {
+    input: test.input,
     expected: test.expected,
     actual: actual ?? null,
     status: response.status,

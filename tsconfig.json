@@ -14,7 +14,8 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "types": ["vite/client", "node"]
+    "types": ["vite/client", "node", "@cloudflare/workers-types"]
   },
-  "include": ["src", "server", "tests", "vite.config.ts"]
+  "include": ["src", "server", "tests", "app", "db", "worker-configuration.d.ts"],
+  "exclude": ["node_modules", "output", "dist"]
 }

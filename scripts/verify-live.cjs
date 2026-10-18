@@ -89,6 +89,7 @@ async (page) => {
         source.start();
       };
     });
+    await page.getByRole('button', { name: 'ありがとう', exact: true }).click();
     await page.getByRole('button', { name: '音声入力モード', exact: true }).click();
     await page.getByRole('switch', { name: '音声入力', checked: false }).click();
     await page.waitForFunction(
@@ -111,31 +112,31 @@ async (page) => {
       await page.evaluate(() => window.__sentLiveEvents.every((e) => e.type !== 'session.start')),
       'WebRTC never sends session.start',
     );
-    await page.evaluate(() => window.__speakFixture('thanks'));
+    await page.evaluate(() => window.__speakFixture('hello'));
     await page.getByRole('button', { name: 'このことばを練習する' }).waitFor({ timeout: 40000 });
     assert(
-      (await page.locator('.voice-recommendation strong').innerText()) === 'ありがとう',
-      'Japanese audio chooses thanks through native Decisions',
+      (await page.locator('.voice-recommendation strong').innerText()) === 'こんにちは',
+      'bare Japanese hello audio chooses hello through native Decisions',
     );
     assert(
-      await page.getByRole('heading', { name: 'こんにちは', exact: true }).isVisible(),
+      await page.getByRole('heading', { name: 'ありがとう', exact: true }).isVisible(),
       'recommendation does not change the lesson before confirmation',
     );
     assert(
       await page
         .locator('.voice-transcripts')
         .innerText()
-        .then((t) => t.includes('ありがとう')),
+        .then((t) => t.includes('こんにちは')),
       'real input transcript is visible',
     );
     const choice = await page.evaluate(() =>
-      window.__liveEvents.find((e) => e.choice === 'thanks'),
+      window.__liveEvents.find((e) => e.choice === 'hello'),
     );
     const outputBeforeConfirm = await page.evaluate(
       () => window.__liveEvents.filter((e) => e.type === 'session.output_transcript.delta').length,
     );
     await page.getByRole('button', { name: 'このことばを練習する' }).click();
-    await page.getByRole('heading', { name: 'ありがとう', exact: true }).waitFor();
+    await page.getByRole('heading', { name: 'こんにちは', exact: true }).waitFor();
     assert(
       await page.evaluate(
         (id) =>
@@ -181,7 +182,7 @@ async (page) => {
     await page.evaluate(() => window.__speakFixture('unsupported'));
     await page.locator('.voice-unsupported').waitFor({ timeout: 40000 });
     assert(
-      await page.getByRole('heading', { name: 'ありがとう', exact: true }).isVisible(),
+      await page.getByRole('heading', { name: 'こんにちは', exact: true }).isVisible(),
       'unsupported sentence keeps the displayed lesson',
     );
     assert(

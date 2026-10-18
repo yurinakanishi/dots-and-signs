@@ -4,7 +4,7 @@
 
 [ChatGPT Site](https://practice-signs-with-dots.yurinakanishi33.chatgpt.site) · [GitHub](https://github.com/yurinakanishi/practice-signs-with-dots)（どちらも本人限定）
 
-この版は **ローカルの音声アシスト対応版** です。既存の公開Siteへはまだ反映していません。[引き継ぎ仕様](SPEC.md)・[音声の構成と検証](docs/LIVE.md)も参照してください。
+この版は **ローカルとSitesの音声アシスト対応版** です。SitesではWorkerが音声APIを提供し、D1に利用回数だけ保存します。公開手順・検証状況は [docs/SITES.md](docs/SITES.md)、[引き継ぎ仕様](SPEC.md)・[音声の構成と検証](docs/LIVE.md)も参照してください。
 
 ローカル版はサインイン不要です。ChatGPTサインインの連携やログイン用トークンの保存は実装していません。音声にはサーバー側のOpenAI APIキーを使います。
 
@@ -43,7 +43,8 @@
 | お手本・dots   | PNG、SVG、CSSアニメーション        | 提供画像、文章手順、まばたき、ジャンプ、成功演出   |
 | ビルド         | Vite、TypeScript                   | 配布用の静的ファイルを生成                         |
 | 検証           | Vitest、Playwright、GitHub Actions | 判定ロジック、ブラウザ操作、ビルドを確認           |
-| ローカル配信   | Node.js + Vite / `dist/`           | 画面とAPIを同一Originで提供                        |
+| ローカル配信   | Node.js + Vite / `dist-local/`     | 画面とAPIを同一Originで提供                        |
+| Sites配信      | Vinext + Workers + D1             | 音声APIと永続的な利用回数制限                      |
 
 ## 使用ライブラリとバージョン
 
@@ -223,13 +224,13 @@ Reactの `useState`、`useRef`、`useEffect`、`useCallback` を使って画面�
 | OpenAI API               | `gpt-live-1` + `gpt-6-luna`。音声利用時のみサーバー側キーが必要 |
 | マイク音声・会話         | 開始操作後にOpenAIへ音声を送信。字幕はページのメモリ内          |
 | Node.js                  | 22.18以上。開発と本番形式のローカルサーバーにも使用             |
-| 既存の静的Site           | 以前のカメラ練習版。今回の音声APIは静的配信だけでは動作しない   |
+| Sites                   | Workerが音声セッションを作成。D1は日付・回数・最終開始時刻だけ保存 |
 
 モデル・WASM・画像・フォントなどの配信には通常のネットワークアクセスがあります。カメラ画像を使った推論処理は端末内で実行します。
 
-`.openai/hosting.json` は `static.directory: "dist"` を指定しています。GitHub Actionsは検証用で、現在の `ci.yml` に本番デプロイ処理はありません。
+`.openai/hosting.json` は既存のSite IDと `d1: "DB"` を指定しています。Sites向け出力は `dist/server/` と `dist/client/` です。GitHub Actionsは検証用で、現在の `ci.yml` に本番デプロイ処理はありません。
 
-静的出力は `dist/`。今回の起動ではNodeが同じOriginから画面と音声APIを配信します。外部公開は今回の範囲外です。公開する場合は認証・利用者単位の制限を備えたバックエンドが必要です。GitHubへのpushだけでは既存Siteへ自動反映されません。
+Sitesの本人限定アクセスを維持します。アプリ独自のログイン画面・OAuthはありません。Sitesではプラットフォームのアクセス制御を通過したリクエストだけが届きます。APIキーはSitesの秘密設定に保存し、Gitや配布物に含めません。GitHubへのpushだけでは既存Siteへ自動反映されません。
 
 ## ローカル起動
 
@@ -268,10 +269,11 @@ npm run dev
 
 ```powershell
 npm run check
+npm run build:local
 npm start
 ```
 
-`npm start` はビルド済みの画面と音声APIを起動します。`npm run preview` は静的表示だけの確認用で、音声APIは含みません。実APIを有料で検証する場合だけ `npm run verify:api` を実行します。
+`npm start` は `dist-local/` とローカル音声APIを起動します。`npm run preview` はSites向けWorkerのローカルプレビューです。DBの初期化・秘密設定は [docs/SITES.md](docs/SITES.md) を参照してください。実APIを有料で検証する場合だけ `npm run verify:api` を実行します。
 
 ブラウザ確認の再実行は、開発サーバーと専用の検証ブラウザを使います。
 
@@ -317,7 +319,10 @@ npx --yes --package @playwright/cli playwright-cli -s=greetings close
 | `tests/*.test.ts`                                     | 判定と進行の自動テスト                                |
 | `scripts/verify-*.cjs` / `browser-smoke.cjs`          | ブラウザ・モデル・キャラクターの検証スクリプト        |
 | `.github/workflows/ci.yml`                            | GitHub Actionsの検証設定                              |
-| `.openai/hosting.json`                                | ChatGPT Sitesの静的配信設定                           |
+| `.openai/hosting.json`                                | ChatGPT SitesのSite ID・D1バインディング               |
+| `server/hosted-api.ts` / `server/hosted-usage.ts`        | 公開用音声API・同時接続に対応した永続回数制限           |
+| `app/` / `build/sites-worker.ts`                       | 既存画面を配信するVinext・Workerエントリー             |
+| `db/schema.ts` / `drizzle/`                           | 利用回数だけを保存するD1スキーマとマイグレーション      |
 | `docs/RECOGNITION.md`                                 | 教材と判定方式の根拠、CRO-MAGNONを参考にした点        |
 | `docs/CHARACTER_ASSET.md`                             | キャラクター素材の作り方と出典                        |
 | `docs/QA.md`                                          | 実施済みの検証と、未確認・未解決の事項                |

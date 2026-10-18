@@ -1,9 +1,9 @@
 import { memo, useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
-import blueBody from '../assets/dots/blue-body.png';
-import greenBody from '../assets/dots/green-body.png';
-import yellowBody from '../assets/dots/yellow-body.png';
-import pinkBody from '../assets/dots/pink-body.png';
+import blueBody from '../assets/dots/blue-body.png?url';
+import greenBody from '../assets/dots/green-body.png?url';
+import yellowBody from '../assets/dots/yellow-body.png?url';
+import pinkBody from '../assets/dots/pink-body.png?url';
 import './Dot.css';
 
 export type DotColor = 'blue' | 'green' | 'yellow' | 'pink';

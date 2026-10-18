@@ -88,7 +88,7 @@ describe('local Live API boundary', () => {
     });
     expect(
       sent.session.delegation.decisions.questions[0].choices.map((c: { value: string }) => c.value),
-    ).toEqual(['hello', 'evening', 'thanks', 'welcome', 'none']);
+    ).toEqual(['hello', 'evening', 'thanks', 'welcome', 'none', 'unclear']);
     expect(sent.session.instructions).toContain('「OpenAI」の指文字は確認中');
     expect(res.body).not.toContain('test-only-key');
     expect(res.body).not.toContain('secret');

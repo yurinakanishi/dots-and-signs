@@ -18,7 +18,7 @@
 2. 音声入力モードに切り替えても音声はOFF。「音声入力」スイッチをONにした時だけマイクの許可と接続を始める。送信先と有料であることを開始前に表示する。
 3. 日本語で話すと、利用者とコーチの字幕、教材候補が表示される。
 4. 「このことばを練習する」で確認した時だけ教材を切り替える。音声接続や教材確認でカメラを自動開始しない。
-5. 対象外・曖昧な依頼は `none` とし、「この文章の手話はまだ教材化していません」と表示する。登録語を含む未対応の文章を、近い単語に置き換えない。
+5. 教材名だけの発話も選択依頼とする。言いよどみ・繰り返し・意味のつながらない末尾が混ざっても、1つの教材が明瞭なら確認候補を出す。明確な否定・訂正を尊重し、曖昧な発話は `unclear` として聞き直す。明確に未登録の表現は `none` とし、「この文章の手話はまだ教材化していません」と表示する。登録語を含む未対応の文章全体の翻訳依頼を、近い単語に置き換えない。
 6. スイッチをOFF、選択モードへ切り替える、タブを離れる、1分経過で音声を終了する。入力とコーチの再生を即座に止め、終了応答を待って通信資源を解放する。許可待ち中に切り替えても、遅れて許可されたマイクを解放する。
 7. 音声の障害時も「選択モードに切り替える」から4教材を選べる。モードの切り替えは教材・カメラ・完了済みのステップを変更しない。別の教材を選ぶと練習の進行だけをリセットする。
 
@@ -38,11 +38,11 @@
 
 - offer前にデータチャネルとイベントハンドラーを登録する。チャネルopenではなく `session.started` を待って準備完了とする。WebRTCでは `session.start` を送らない。
 - `session.input_transcript.delta` / `session.output_transcript.delta` の断片・時刻・話者を保持する。存在しない確定イベントや文末を仮定しない。同一event_idの重複だけ除外する。
-- サーバー設定の `delegation.type` は `decisions`。choice question `lesson_id` の候補は `hello` / `evening` / `thanks` / `welcome` / `none`。手動選択・音声・画像パス・教材の注意書きは `src/lib/lessons.ts` を共通定義とする。
+- サーバー設定の `delegation.type` は `decisions`。choice question `lesson_id` の候補は `hello` / `evening` / `thanks` / `welcome` / `none` / `unclear`。手動選択・音声・画像パス・教材の注意書きは `src/lib/lessons.ts` を共通定義とする。
 - `session.delegation.created.delegation.id` と `decision.event.delegation_id` を照合する。内側の `decision.completed` の `decision.answers` から `lesson_id` を読む。
 - 不明ID、古い委任、重複結果、不正なchoiceを採用しない。利用者が手動で教材を変えたら古い候補を破棄する。
 - 結果はまず提案とする。確認後、Reactで教材が実際に表示された後に、同じdelegation_idへ `session.commentary.append` で実行結果を通知する。
-- `none`・提案取消・選択失敗も対応するdelegation_idに結果を返す。音声だけで勝手に成功を報告しない。
+- `none`・`unclear`・提案取消・選択失敗も対応するdelegation_idに結果を返す。聞き取りの曖昧さを教材の不存在として伝えない。音声だけで勝手に成功を報告しない。
 - 正常停止は `session.close` を送り、マイクをローカルで無音化し `session.closed` を待つ。3秒で応答がなければ資源を解放し、終了応答を確認できなかったことを表示する。
 - 接続・通信・許可・APIエラーはUIに安全な説明を表示し、track / peer / channel / audio / timer / fetchを解放する。
 

@@ -1,5 +1,11 @@
 node_modules/
 dist/
+dist-local/
+.wrangler/
+.vinext/
+.next/
+.sites-runtime/
+.dev.vars*
 public/vendor/
 public/licenses/generated/
 public/models/*.task

@@ -1,5 +1,11 @@
 node_modules
 dist
+dist-local
+.wrangler
+.vinext
+.sites-runtime
+build/sites-vite-plugin.ts
+worker-configuration.d.ts
 public/vendor
 public/models
 output
