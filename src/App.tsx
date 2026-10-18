@@ -128,10 +128,15 @@ export default function App() {
         </div>
       </header>
       <main id="practice" tabIndex={-1}>
-        <div className="page-title">
-          <p className="eyebrow">dotsと、はじめての手話</p>
-          <h1>ひとことを、手話で。</h1>
-          <p>お手本を見て、まねしてみよう。</p>
+        <div className="hero-visual">
+          <h1 className="visually-hidden">ひとことを、手話で。</h1>
+          <img
+            src="/hero.jpg"
+            alt="黒いベレー帽をかぶった青いdotsが両手を広げている"
+            width="1672"
+            height="940"
+            fetchPriority="high"
+          />
         </div>
         <LessonInput selected={selected} coach={coach} />
         <section
