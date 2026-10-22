@@ -22,7 +22,7 @@
     "format": "prettier --write ."
   },
   "engines": {
-    "node": ">=22.18.0"
+    "node": ">=24.22.1 <25"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "5.3.0",
